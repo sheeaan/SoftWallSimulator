@@ -142,6 +142,27 @@ namespace
         return lastHitDestroyed && tileIsEmpty;
     }
 
+    bool shotOpensHoleThatVisionPassesThrough()
+    {
+        // A soft wall at column 5, with a hard wall behind it at column 8.
+        Grid grid(10, 5);
+        grid.setTile(GridCell{5, 2}, TileType::SOFT_WALL);
+        grid.setTile(GridCell{8, 2}, TileType::HARD_WALL);
+
+        // A horizontal shot at height 2.5 drills the slot through panel row 2, which spans 2.5 to 2.75.
+        std::uint16_t slot = panelsAlongShot(GridCell{5, 2}, sf::Vector2f(2.5f, 2.5f), sf::Vector2f(5.1f, 2.5f));
+        grid.damageTile(GridCell{5, 2}, slot);
+
+        Raycaster raycaster;
+        RayHit throughSlot = raycaster.castRay(sf::Vector2f(2.5f, 2.5f), sf::Vector2f(1.f, 0.f), grid);
+        RayHit besideSlot = raycaster.castRay(sf::Vector2f(2.5f, 2.1f), sf::Vector2f(1.f, 0.f), grid);
+
+        bool wallStillStands = grid.getTile(GridCell{5, 2}).type == TileType::SOFT_WALL;
+        bool rayPassesThroughSlot = throughSlot.cell == GridCell{8, 2} && isNear(throughSlot.distance, 5.5f);
+        bool rayBesideSlotStops = besideSlot.cell == GridCell{5, 2} && isNear(besideSlot.distance, 2.5f);
+        return wallStillStands && rayPassesThroughSlot && rayBesideSlotStops;
+    }
+
     // ---- Vision ----
 
     bool visionCastsExactly360Rays()
@@ -264,6 +285,42 @@ namespace
         bool rayReachesFarWallAfter = isNear(eastRayAfter, 4.5f);
         return hiddenAtStart && visibleAfterBreak && rayStoppedAtSoftWallBefore && rayReachesFarWallAfter;
     }
+
+    bool endToEndShootingHoleShowsEnemyThroughStandingWall()
+    {
+        World world(parseLevel(CorridorRows));
+        bool hiddenAtStart = !world.canPlayerSeeEnemy();
+
+        // One shot from the player, straight along the corridor.
+        DamageResult result = world.damageTileAt(CorridorSoftWallPosition);
+
+        bool wallStillStands = result == DamageResult::DAMAGED
+                               && world.getGrid().getTile(GridCell{3, 1}).type == TileType::SOFT_WALL;
+        bool seesEnemyThroughHole = world.canPlayerSeeEnemy();
+        bool enemyStillHasNoRoute = world.getEnemy().getPath().empty(); // A hole does not make a wall walkable.
+        return hiddenAtStart && wallStillStands && seesEnemyThroughHole && enemyStillHasNoRoute;
+    }
+
+    bool endToEndHoleGivesSightOnlyAlongLineOfFire()
+    {
+        // A full soft-wall divider between player and enemy.
+        World world(parseLevel({
+            "#########",
+            "#...+...#",
+            "#P..+..E#",
+            "#...+...#",
+            "#########",
+        }));
+
+        // Shoot the middle of the divider from the spawn, then step 0.6 tiles up, out of line with the slot.
+        world.damageTileAt(sf::Vector2f(4.5f, 2.5f));
+        bool seesFromWhereItShot = world.canPlayerSeeEnemy();
+
+        world.update(0.1f, sf::Vector2f(0.f, -1.f));
+        bool playerMovedUp = world.getPlayer().getPosition().y < 2.f;
+        bool lostSightAfterMoving = !world.canPlayerSeeEnemy();
+        return seesFromWhereItShot && playerMovedUp && lostSightAfterMoving;
+    }
 }
 
 int main()
@@ -283,6 +340,11 @@ int main()
             endToEndBreakingWallOpensShortcutEnemyWalksThrough);
     runTest("End to end: breaking the wall between player and enemy gives line of sight",
             endToEndBreakingWallGivesLineOfSight);
+    runTest("A shot opens a hole that vision passes through", shotOpensHoleThatVisionPassesThrough);
+    runTest("End to end: a bullet hole shows the enemy through a wall that still stands",
+            endToEndShootingHoleShowsEnemyThroughStandingWall);
+    runTest("End to end: a bullet hole gives sight only along the line of fire",
+            endToEndHoleGivesSightOnlyAlongLineOfFire);
 
     std::cout << '\n' << passedTestCount << " passed, " << failedTestCount << " failed\n";
     if (failedTestCount > 0)

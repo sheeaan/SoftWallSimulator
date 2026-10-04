@@ -1,11 +1,15 @@
 #include "simulation/Raycaster.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
 namespace
 {
     constexpr double Pi = 3.14159265358979323846;
+
+    // A ray crosses at most every panel boundary of a tile once, so it leaves the tile within this many steps.
+    constexpr int MaximumPanelSteps = 2 * Grid::PanelsPerSide + 1;
 }
 
 Raycaster::Raycaster()
@@ -87,11 +91,16 @@ RayHit Raycaster::castRay(sf::Vector2f origin, sf::Vector2f direction, const Gri
 
         if (grid.blocksVision(cell))
         {
-            RayHit hit;
-            hit.point = origin + direction * crossingDistance;
-            hit.distance = crossingDistance;
-            hit.cell = cell;
-            return hit;
+            // Usually the ray stops at the face it entered. Through a bullet hole, it keeps going.
+            std::optional<float> stopDistance = findStopDistance(grid, cell, origin, direction, crossingDistance);
+            if (stopDistance.has_value())
+            {
+                RayHit hit;
+                hit.point = origin + direction * stopDistance.value();
+                hit.distance = stopDistance.value();
+                hit.cell = cell;
+                return hit;
+            }
         }
     }
 
@@ -130,4 +139,100 @@ bool Raycaster::hasLineOfSight(sf::Vector2f from, sf::Vector2f to, const Grid& g
     // The target is visible when the first blocking cell lies beyond it.
     RayHit hit = castRay(from, offset / distance, grid);
     return hit.distance >= distance;
+}
+
+std::optional<float> Raycaster::findStopDistance(const Grid& grid, GridCell cell, sf::Vector2f origin,
+                                                 sf::Vector2f direction, float entryDistance) const
+{
+    // Hard walls, intact soft walls, and cells outside the map stop the ray where it enters them.
+    if (!grid.contains(cell))
+    {
+        return entryDistance;
+    }
+    const Tile& tile = grid.getTile(cell);
+    if (tile.type != TileType::SOFT_WALL || tile.intactPanels == Grid::AllPanelsIntact)
+    {
+        return entryDistance;
+    }
+
+    // A soft wall with bullet holes: run the same DDA again inside the tile, on its 4 x 4 panel grid.
+    // The ray stops at the first intact panel. If it leaves the tile first, it went through the holes.
+    const float infinity = std::numeric_limits<float>::infinity();
+    const float panelSize = 1.f / static_cast<float>(Grid::PanelsPerSide);
+    sf::Vector2f tileCorner(static_cast<float>(cell.column), static_cast<float>(cell.row));
+    sf::Vector2f entryPoint = origin + direction * entryDistance;
+
+    // The entry point lies on the tile's edge, so clamping keeps rounding from placing it in a neighbor.
+    int panelColumn = static_cast<int>(std::floor((entryPoint.x - tileCorner.x) / panelSize));
+    int panelRow = static_cast<int>(std::floor((entryPoint.y - tileCorner.y) / panelSize));
+    panelColumn = std::clamp(panelColumn, 0, Grid::PanelsPerSide - 1);
+    panelRow = std::clamp(panelRow, 0, Grid::PanelsPerSide - 1);
+
+    // The same bookkeeping as the tile DDA, with panel-sized cells.
+    int columnStep = 0;
+    float distancePerPanelColumn = infinity;
+    float distanceToNextPanelColumn = infinity;
+    if (direction.x > 0.f)
+    {
+        columnStep = 1;
+        distancePerPanelColumn = panelSize / direction.x;
+        float nextBoundary = tileCorner.x + static_cast<float>(panelColumn + 1) * panelSize;
+        distanceToNextPanelColumn = (nextBoundary - origin.x) / direction.x;
+    }
+    else if (direction.x < 0.f)
+    {
+        columnStep = -1;
+        distancePerPanelColumn = panelSize / -direction.x;
+        float nextBoundary = tileCorner.x + static_cast<float>(panelColumn) * panelSize;
+        distanceToNextPanelColumn = (nextBoundary - origin.x) / direction.x;
+    }
+
+    int rowStep = 0;
+    float distancePerPanelRow = infinity;
+    float distanceToNextPanelRow = infinity;
+    if (direction.y > 0.f)
+    {
+        rowStep = 1;
+        distancePerPanelRow = panelSize / direction.y;
+        float nextBoundary = tileCorner.y + static_cast<float>(panelRow + 1) * panelSize;
+        distanceToNextPanelRow = (nextBoundary - origin.y) / direction.y;
+    }
+    else if (direction.y < 0.f)
+    {
+        rowStep = -1;
+        distancePerPanelRow = panelSize / -direction.y;
+        float nextBoundary = tileCorner.y + static_cast<float>(panelRow) * panelSize;
+        distanceToNextPanelRow = (nextBoundary - origin.y) / direction.y;
+    }
+
+    float distance = entryDistance;
+    for (int step = 0; step < MaximumPanelSteps; ++step)
+    {
+        bool insideTile = panelColumn >= 0 && panelColumn < Grid::PanelsPerSide && panelRow >= 0
+                          && panelRow < Grid::PanelsPerSide;
+        if (!insideTile)
+        {
+            return std::nullopt;
+        }
+        if (isPanelIntact(tile, panelColumn, panelRow))
+        {
+            return distance;
+        }
+
+        if (distanceToNextPanelColumn < distanceToNextPanelRow)
+        {
+            distance = distanceToNextPanelColumn;
+            distanceToNextPanelColumn += distancePerPanelColumn;
+            panelColumn += columnStep;
+        }
+        else
+        {
+            distance = distanceToNextPanelRow;
+            distanceToNextPanelRow += distancePerPanelRow;
+            panelRow += rowStep;
+        }
+    }
+
+    // Only a zero-length direction gets here: it never leaves its panel.
+    return distance;
 }

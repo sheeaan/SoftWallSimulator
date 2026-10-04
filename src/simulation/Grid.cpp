@@ -2,6 +2,7 @@
 
 #include "simulation/SimulatorErrors.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 
@@ -105,10 +106,12 @@ void Grid::setTile(GridCell cell, TileType type)
     if (type == TileType::SOFT_WALL)
     {
         tile.health = SoftWallMaxHealth;
+        tile.intactPanels = AllPanelsIntact;
     }
     else
     {
         tile.health = 0;
+        tile.intactPanels = 0;
     }
 }
 
@@ -131,7 +134,7 @@ bool Grid::blocksVision(GridCell cell) const
     return getTile(cell).type != TileType::EMPTY;
 }
 
-DamageResult Grid::damageTile(GridCell cell)
+DamageResult Grid::damageTile(GridCell cell, std::uint16_t panelsHit)
 {
     if (!contains(cell))
     {
@@ -144,12 +147,55 @@ DamageResult Grid::damageTile(GridCell cell)
         return DamageResult::NO_EFFECT;
     }
 
-    // Health is one byte. The subtraction happens in int, so the result is cast back explicitly.
+    // Health and panels are small integers. The arithmetic happens in int, so results are cast back explicitly.
     tile.health = static_cast<std::uint8_t>(tile.health - 1);
+    tile.intactPanels = static_cast<std::uint16_t>(tile.intactPanels & ~panelsHit);
     if (tile.health == 0)
     {
         tile.type = TileType::EMPTY;
+        tile.intactPanels = 0;
         return DamageResult::DESTROYED;
     }
     return DamageResult::DAMAGED;
+}
+
+std::uint16_t panelBit(int panelColumn, int panelRow)
+{
+    int bitIndex = panelRow * Grid::PanelsPerSide + panelColumn;
+    return static_cast<std::uint16_t>(1u << bitIndex);
+}
+
+bool isPanelIntact(const Tile& tile, int panelColumn, int panelRow)
+{
+    return (tile.intactPanels & panelBit(panelColumn, panelRow)) != 0;
+}
+
+std::uint16_t panelsAlongShot(GridCell cell, sf::Vector2f shotFrom, sf::Vector2f shotAt)
+{
+    // The panel the shot lands on. Clamping keeps a hit on the tile's very edge inside the tile.
+    float panelsPerTile = static_cast<float>(Grid::PanelsPerSide);
+    int hitColumn = static_cast<int>(std::floor((shotAt.x - static_cast<float>(cell.column)) * panelsPerTile));
+    int hitRow = static_cast<int>(std::floor((shotAt.y - static_cast<float>(cell.row)) * panelsPerTile));
+    hitColumn = std::clamp(hitColumn, 0, Grid::PanelsPerSide - 1);
+    hitRow = std::clamp(hitRow, 0, Grid::PanelsPerSide - 1);
+
+    sf::Vector2f shot = shotAt - shotFrom;
+    std::uint16_t panels = 0;
+    if (std::abs(shot.x) >= std::abs(shot.y))
+    {
+        // Mostly horizontal: the slot is the whole row of panels at the height the shot hit.
+        for (int panelColumn = 0; panelColumn < Grid::PanelsPerSide; ++panelColumn)
+        {
+            panels = static_cast<std::uint16_t>(panels | panelBit(panelColumn, hitRow));
+        }
+    }
+    else
+    {
+        // Mostly vertical: the whole column of panels at the position the shot hit.
+        for (int panelRow = 0; panelRow < Grid::PanelsPerSide; ++panelRow)
+        {
+            panels = static_cast<std::uint16_t>(panels | panelBit(hitColumn, panelRow));
+        }
+    }
+    return panels;
 }

@@ -13,11 +13,12 @@ enum class TileType : std::uint8_t
     HARD_WALL
 };
 
-// Two bytes per tile, so the whole map is one small, contiguous block of memory.
+// Four bytes per tile, so the whole map is one small, contiguous block of memory.
 struct Tile
 {
     TileType type = TileType::EMPTY;
-    std::uint8_t health = 0; // Hits left before a SOFT_WALL breaks. Other types ignore it.
+    std::uint8_t health = 0;        // Hits left before a SOFT_WALL breaks. Other types ignore it.
+    std::uint16_t intactPanels = 0; // One bit per panel of a SOFT_WALL's 4 x 4 panel grid. A cleared bit is a bullet hole.
 };
 
 struct GridCell
@@ -46,6 +47,8 @@ class Grid
 {
 public:
     static constexpr std::uint8_t SoftWallMaxHealth = 3;
+    static constexpr int PanelsPerSide = 4; // A SOFT_WALL is a 4 x 4 grid of panels that bullets punch out.
+    static constexpr std::uint16_t AllPanelsIntact = 0xFFFF;
 
     Grid(int columns, int rows);
 
@@ -63,10 +66,21 @@ public:
     bool isWalkable(GridCell cell) const;
     bool blocksVision(GridCell cell) const;
 
-    DamageResult damageTile(GridCell cell);
+    // Takes one health from a SOFT_WALL and punches out the panels the shot went through.
+    DamageResult damageTile(GridCell cell, std::uint16_t panelsHit);
 
 private:
     int columnCount;
     int rowCount;
     std::vector<Tile> tiles;
 };
+
+// Panels are numbered row by row, like tiles: panel (column, row) is bit row * 4 + column.
+std::uint16_t panelBit(int panelColumn, int panelRow);
+bool isPanelIntact(const Tile& tile, int panelColumn, int panelRow);
+
+// The panels a shot punches out of the wall in `cell`. The shot flies from shotFrom to shotAt and drills
+// a straight slot, one panel wide, through the whole wall along its main axis: a row of panels for a
+// mostly horizontal shot, a column for a mostly vertical one. Rays pass through the slot, so the player
+// can see through the wall along the line of fire, but not from the side.
+std::uint16_t panelsAlongShot(GridCell cell, sf::Vector2f shotFrom, sf::Vector2f shotAt);

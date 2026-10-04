@@ -28,7 +28,8 @@ public:
 
     void update(float seconds, sf::Vector2f playerInputDirection);
 
-    // Damages the tile under a world position. When a soft wall breaks, the enemy re-plans
+    // Shoots the tile under a world position from the player's position. A soft wall loses one health
+    // and gets a see-through slot along the line of fire. When it breaks, the enemy re-plans
     // inside this same call, so the new path exists before the next frame is drawn.
     DamageResult damageTileAt(sf::Vector2f worldPosition);
 

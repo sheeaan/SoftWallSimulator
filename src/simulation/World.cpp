@@ -37,7 +37,10 @@ void World::update(float seconds, sf::Vector2f playerInputDirection)
 
 DamageResult World::damageTileAt(sf::Vector2f worldPosition)
 {
-    DamageResult result = grid.damageTile(cellContaining(worldPosition));
+    // The shot flies from the player to the clicked point and drills its slot through the wall there.
+    GridCell cell = cellContaining(worldPosition);
+    std::uint16_t panelsHit = panelsAlongShot(cell, player.getPosition(), worldPosition);
+    DamageResult result = grid.damageTile(cell, panelsHit);
     if (result == DamageResult::DESTROYED)
     {
         statistics.wallsDestroyed += 1;
