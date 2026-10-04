@@ -7,6 +7,7 @@
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
+#include <SFML/Window/Mouse.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -23,6 +24,12 @@ namespace
     constexpr float EnemyFadePerSecond = 6.f;   // A full fade takes a sixth of a second.
     constexpr float EnemyPulseSpeed = 5.f;      // Radians per second.
     constexpr float EnemySpinDegreesPerSecond = 90.f;
+
+    constexpr float MaximumShakeOffset = 0.35f; // Tiles, at full trauma.
+    constexpr float ShakeDecayPerSecond = 1.6f;
+    constexpr float DestroyShake = 0.55f;
+    constexpr float DamageShake = 0.22f;
+    constexpr float HardWallShake = 0.08f;
 
     // About 80% of the desktop at 16:9, so the window looks the same size on any display.
     sf::Vector2u chooseWindowSize()
@@ -45,6 +52,8 @@ Game::Game()
     , world(parseLevel(getDefaultLevelRows()))
     , tileMapRenderer(world.getGrid())
     , lightingRenderer(window.getSize())
+    , debrisParticles(600)
+    , sparkParticles(800)
     , playerShape(Player::HalfSize, 40)
     , playerGlow(lightingRenderer.getGlowTexture())
     , enemyShape(EnemyDrawRadius, 4) // Four points make a diamond, which reads as hostile next to the round player.
@@ -56,6 +65,7 @@ Game::Game()
     sf::Vector2f mapSize(static_cast<float>(world.getGrid().getColumnCount()),
                          static_cast<float>(world.getGrid().getRowCount()));
     worldView = sf::View(sf::FloatRect(sf::Vector2f(0.f, 0.f), mapSize));
+    cameraView = worldView;
 
     playerShape.setOrigin(sf::Vector2f(Player::HalfSize, Player::HalfSize));
     playerShape.setFillColor(Palette::PlayerBody);
@@ -105,6 +115,54 @@ void Game::processEvents()
                 algorithmOverlay.toggle();
             }
         }
+        else if (const sf::Event::MouseButtonPressed* mousePressed = event->getIf<sf::Event::MouseButtonPressed>())
+        {
+            if (mousePressed->button == sf::Mouse::Button::Left)
+            {
+                handleLeftClick(mousePressed->position);
+            }
+        }
+    }
+}
+
+void Game::handleLeftClick(sf::Vector2i pixelPosition)
+{
+    // Pixel to world through the same view the last frame was drawn with, so the hit lands on the tile
+    // under the cursor even mid-shake. World to cell happens inside World::damageTileAt.
+    sf::Vector2f worldPosition = window.mapPixelToCoords(pixelPosition, cameraView);
+    GridCell clickedCell = cellContaining(worldPosition);
+    sf::Vector2f clickedCenter = cellCenter(clickedCell);
+
+    bool clickedHardWall = false;
+    if (world.getGrid().contains(clickedCell))
+    {
+        clickedHardWall = world.getGrid().getTile(clickedCell).type == TileType::HARD_WALL;
+    }
+
+    DamageResult result = world.damageTileAt(worldPosition);
+    if (result == DamageResult::DESTROYED)
+    {
+        tileMapRenderer.rebuildWalls(world.getGrid());
+        tileMapRenderer.flashTile(clickedCell);
+        debrisParticles.spawnBurst(clickedCenter, 28, Palette::Debris, 5.f, 0.9f, 0.16f);
+        sparkParticles.spawnBurst(clickedCenter, 36, Palette::Spark, 10.f, 0.45f, 0.07f);
+        algorithmOverlay.flashPath();
+        shakeTrauma = std::min(1.f, shakeTrauma + DestroyShake);
+    }
+    else if (result == DamageResult::DAMAGED)
+    {
+        tileMapRenderer.rebuildWalls(world.getGrid());
+        tileMapRenderer.flashTile(clickedCell);
+        debrisParticles.spawnBurst(clickedCenter, 8, Palette::Debris, 3.5f, 0.6f, 0.12f);
+        sparkParticles.spawnBurst(clickedCenter, 12, Palette::Spark, 8.f, 0.3f, 0.06f);
+        shakeTrauma = std::min(1.f, shakeTrauma + DamageShake);
+    }
+    else if (clickedHardWall)
+    {
+        // Hard walls shrug the hit off: a flash and a few cold sparks, but no damage.
+        tileMapRenderer.flashTile(clickedCell);
+        sparkParticles.spawnBurst(clickedCenter, 10, Palette::HardWallSpark, 7.f, 0.25f, 0.05f);
+        shakeTrauma = std::min(1.f, shakeTrauma + HardWallShake);
     }
 }
 
@@ -113,6 +171,9 @@ void Game::update(float seconds)
     elapsedSeconds += seconds;
     world.update(seconds, readMovementInput());
     algorithmOverlay.update(seconds);
+    tileMapRenderer.update(seconds);
+    debrisParticles.update(seconds);
+    sparkParticles.update(seconds);
 
     // Fade the enemy in or out instead of popping at the edge of a shadow.
     // The overlay shows it through walls.
@@ -130,21 +191,31 @@ void Game::update(float seconds)
     {
         enemyVisibility = std::max(targetVisibility, enemyVisibility - fadeStep);
     }
+
+    // Screen shake: trauma decays over time, and the offset grows with its square,
+    // so small hits barely nudge the camera and a breaking wall kicks it hard.
+    shakeTrauma = std::max(0.f, shakeTrauma - ShakeDecayPerSecond * seconds);
+    float shakeOffset = MaximumShakeOffset * shakeTrauma * shakeTrauma;
+    std::uniform_real_distribution<float> shakeDirection(-1.f, 1.f);
+    cameraView = worldView;
+    cameraView.move(sf::Vector2f(shakeDirection(shakeRandom), shakeDirection(shakeRandom)) * shakeOffset);
 }
 
 void Game::render()
 {
     window.clear(Palette::Background);
-    window.setView(worldView);
+    window.setView(cameraView);
 
     // Everything drawn before the light map is darkened where the rays cannot reach.
     tileMapRenderer.drawFloor(window);
+    debrisParticles.draw(window, sf::BlendAlpha);
     tileMapRenderer.drawWalls(window);
-    lightingRenderer.drawLightMap(window, worldView, world.getGrid(), world.getPlayer().getPosition(),
+    lightingRenderer.drawLightMap(window, cameraView, world.getGrid(), world.getPlayer().getPosition(),
                                   world.getVisibility());
 
     // Everything drawn after it stays visible in the dark.
     tileMapRenderer.drawWallEdges(window);
+    tileMapRenderer.drawFlashes(window);
     algorithmOverlay.draw(window, world);
 
     // The enemy's glow pulses, and both glow and body fade with line of sight.
@@ -166,6 +237,8 @@ void Game::render()
     window.draw(playerGlow, sf::BlendAdd);
     playerShape.setPosition(world.getPlayer().getPosition());
     window.draw(playerShape);
+
+    sparkParticles.draw(window, sf::BlendAdd);
 
     window.display();
 }

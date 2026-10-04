@@ -17,6 +17,13 @@ namespace Palette
     inline constexpr sf::Color HardWallEdge{66, 82, 120};
     inline constexpr sf::Color SoftWallEdge{186, 118, 52};
 
+    // Destruction.
+    inline constexpr sf::Color Crack{58, 28, 10};
+    inline constexpr sf::Color TileFlash{255, 255, 255, 190};
+    inline constexpr sf::Color Debris{196, 116, 52};
+    inline constexpr sf::Color Spark{255, 196, 110};
+    inline constexpr sf::Color HardWallSpark{170, 205, 255};
+
     // The light map starts at the ambient level; the player's light adds to it.
     inline constexpr sf::Color AmbientLight{64, 70, 96};
     inline constexpr sf::Color Light{255, 240, 214};

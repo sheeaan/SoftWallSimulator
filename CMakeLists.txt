@@ -36,6 +36,7 @@ add_executable(SoftWallSimulator
     src/presentation/AlgorithmOverlay.cpp
     src/presentation/Game.cpp
     src/presentation/LightingRenderer.cpp
+    src/presentation/ParticleSystem.cpp
     src/presentation/TileMapRenderer.cpp)
 target_link_libraries(SoftWallSimulator PRIVATE SoftWallSimulation SFML::Graphics)
 
