@@ -41,7 +41,7 @@ GridCell cellContaining(sf::Vector2f worldPosition);
 sf::Vector2f cellCenter(GridCell cell);
 
 // The map: a 2D grid of tiles stored in one std::vector, row after row.
-// Neighbouring tiles in a row are neighbours in memory, so row-by-row loops stay in cache.
+// Neighboring tiles in a row are neighbors in memory, so row-by-row loops stay in cache.
 class Grid
 {
 public:

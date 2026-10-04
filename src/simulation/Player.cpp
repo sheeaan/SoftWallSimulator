@@ -12,7 +12,7 @@ void Player::move(sf::Vector2f inputDirection, float seconds, const Grid& grid)
         return;
     }
 
-    // Normalise so that moving diagonally is not faster than moving straight.
+    // Normalize so that moving diagonally is not faster than moving straight.
     sf::Vector2f displacement = inputDirection.normalized() * (Speed * seconds);
 
     // Move one axis at a time. A blocked axis is skipped on its own, so the player slides along walls.

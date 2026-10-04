@@ -20,8 +20,10 @@ FetchContent_MakeAvailable(SFML)
 
 # Simulation: the grid and everything that moves on it. No rendering, so the tests run headless.
 add_library(SoftWallSimulation STATIC
+    src/simulation/Enemy.cpp
     src/simulation/Grid.cpp
     src/simulation/Level.cpp
+    src/simulation/Pathfinder.cpp
     src/simulation/Player.cpp
     src/simulation/Raycaster.cpp
     src/simulation/World.cpp)

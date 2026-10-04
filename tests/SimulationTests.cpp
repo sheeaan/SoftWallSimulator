@@ -2,12 +2,15 @@
 // The process exits with 1 if any test fails, so a build script can check it.
 
 #include "simulation/Grid.hpp"
+#include "simulation/Level.hpp"
+#include "simulation/Pathfinder.hpp"
 #include "simulation/Raycaster.hpp"
 #include "simulation/SimulatorErrors.hpp"
 
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -44,6 +47,25 @@ namespace
     bool isNear(float actual, float expected)
     {
         return std::abs(actual - expected) < 0.0001f;
+    }
+
+    int pathCost(const std::vector<GridCell>& path)
+    {
+        int cost = 0;
+        for (std::size_t index = 1; index < path.size(); ++index)
+        {
+            bool movedColumn = path[index].column != path[index - 1].column;
+            bool movedRow = path[index].row != path[index - 1].row;
+            if (movedColumn && movedRow)
+            {
+                cost += Pathfinder::DiagonalStepCost;
+            }
+            else
+            {
+                cost += Pathfinder::StraightStepCost;
+            }
+        }
+        return cost;
     }
 
     // ---- Grid ----
@@ -87,6 +109,27 @@ namespace
         bool pointIsOnWallFace = isNear(hit.point.x, 5.f) && isNear(hit.point.y, 2.5f);
         return stoppedAtSoftWall && distanceReachesWallFace && pointIsOnWallFace;
     }
+
+    // ---- A* ----
+
+    bool aStarFindsShortestPathAroundWall()
+    {
+        // The wall forces a detour over the top or the bottom. With 8-way moves and no corner cutting,
+        // the cheapest detour is two diagonal steps and four straight steps: 2 x 14 + 4 x 10 = 68.
+        Level level = parseLevel({
+            ".......",
+            "...#...",
+            ".P.#.E.",
+            "...#...",
+            ".......",
+        });
+        Pathfinder pathfinder;
+        std::vector<GridCell> path = pathfinder.findPath(level.grid, level.playerSpawn, level.enemySpawn);
+
+        bool startsAtStart = !path.empty() && path.front() == level.playerSpawn;
+        bool endsAtGoal = !path.empty() && path.back() == level.enemySpawn;
+        return startsAtStart && endsAtGoal && pathCost(path) == 68;
+    }
 }
 
 int main()
@@ -96,6 +139,7 @@ int main()
     runTest("Grid stores cells in row-major order in one vector", gridStoresCellsInRowMajorOrder);
     runTest("Vision casts exactly 360 rays", visionCastsExactly360Rays);
     runTest("A ray stops at the first non-EMPTY tile", rayStopsAtFirstNonEmptyTile);
+    runTest("A* finds the shortest path around a wall", aStarFindsShortestPathAroundWall);
 
     std::cout << '\n' << passedTestCount << " passed, " << failedTestCount << " failed\n";
     if (failedTestCount > 0)
