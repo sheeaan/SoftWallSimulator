@@ -11,6 +11,15 @@
 
 #include <vector>
 
+// Numbers the statistics panel shows that the simulation cannot rebuild from its current state.
+struct SimulationStatistics
+{
+    float visibilityMilliseconds = 0.f;  // The last 360-ray cast.
+    float pathfindingMilliseconds = 0.f; // The last A* search.
+    int pathRecalculations = 0;
+    int wallsDestroyed = 0;
+};
+
 // The whole simulation. The presentation layer drives it through update() and reads it through const getters.
 class World
 {
@@ -28,9 +37,11 @@ public:
     const Enemy& getEnemy() const;
     const std::vector<RayHit>& getVisibility() const;
     const Pathfinder& getPathfinder() const;
+    const SimulationStatistics& getStatistics() const;
     bool canPlayerSeeEnemy() const;
 
 private:
+    void castVisibility();
     void recalculateEnemyPath();
 
     Grid grid;
@@ -39,4 +50,5 @@ private:
     Raycaster raycaster;
     Pathfinder pathfinder;
     GridCell enemyPathTarget; // The player cell the enemy's current path leads to.
+    SimulationStatistics statistics;
 };

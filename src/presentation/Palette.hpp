@@ -34,6 +34,11 @@ namespace Palette
     inline constexpr sf::Color EnemyBody{255, 60, 120};
     inline constexpr sf::Color EnemyGlow{255, 40, 110, 170};
 
+    // Statistics panel.
+    inline constexpr sf::Color PanelBackground{8, 10, 20, 205};
+    inline constexpr sf::Color PanelTitle{96, 240, 255};
+    inline constexpr sf::Color PanelText{205, 214, 235};
+
     // Algorithm overlay.
     inline constexpr sf::Color ExploredEarly{150, 90, 255, 60};
     inline constexpr sf::Color ExploredLate{40, 220, 200, 60};

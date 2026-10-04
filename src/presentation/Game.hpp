@@ -3,6 +3,7 @@
 #include "presentation/AlgorithmOverlay.hpp"
 #include "presentation/LightingRenderer.hpp"
 #include "presentation/ParticleSystem.hpp"
+#include "presentation/StatisticsPanel.hpp"
 #include "presentation/TileMapRenderer.hpp"
 #include "simulation/World.hpp"
 
@@ -35,6 +36,7 @@ private:
     TileMapRenderer tileMapRenderer;
     LightingRenderer lightingRenderer;
     AlgorithmOverlay algorithmOverlay;
+    StatisticsPanel statisticsPanel;
     ParticleSystem debrisParticles;
     ParticleSystem sparkParticles;
     sf::CircleShape playerShape;

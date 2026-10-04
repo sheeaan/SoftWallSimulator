@@ -37,8 +37,10 @@ add_executable(SoftWallSimulator
     src/presentation/Game.cpp
     src/presentation/LightingRenderer.cpp
     src/presentation/ParticleSystem.cpp
+    src/presentation/StatisticsPanel.cpp
     src/presentation/TileMapRenderer.cpp)
 target_link_libraries(SoftWallSimulator PRIVATE SoftWallSimulation SFML::Graphics)
+target_compile_definitions(SoftWallSimulator PRIVATE SOFT_WALL_ASSET_DIRECTORY="${PROJECT_SOURCE_DIR}/assets")
 
 add_executable(SoftWallTests tests/SimulationTests.cpp)
 target_link_libraries(SoftWallTests PRIVATE SoftWallSimulation)

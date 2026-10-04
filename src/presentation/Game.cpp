@@ -52,6 +52,7 @@ Game::Game()
     , world(parseLevel(getDefaultLevelRows()))
     , tileMapRenderer(world.getGrid())
     , lightingRenderer(window.getSize())
+    , statisticsPanel(window.getSize())
     , debrisParticles(600)
     , sparkParticles(800)
     , playerShape(Player::HalfSize, 40)
@@ -171,6 +172,7 @@ void Game::update(float seconds)
     elapsedSeconds += seconds;
     world.update(seconds, readMovementInput());
     algorithmOverlay.update(seconds);
+    statisticsPanel.update(seconds, world);
     tileMapRenderer.update(seconds);
     debrisParticles.update(seconds);
     sparkParticles.update(seconds);
@@ -239,6 +241,7 @@ void Game::render()
     window.draw(playerShape);
 
     sparkParticles.draw(window, sf::BlendAdd);
+    statisticsPanel.draw(window);
 
     window.display();
 }

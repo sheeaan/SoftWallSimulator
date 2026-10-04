@@ -1,12 +1,24 @@
 #include "simulation/World.hpp"
 
+#include <chrono>
+#include <utility>
+
+namespace
+{
+    float millisecondsSince(std::chrono::steady_clock::time_point start)
+    {
+        std::chrono::duration<float, std::milli> elapsed = std::chrono::steady_clock::now() - start;
+        return elapsed.count();
+    }
+}
+
 World::World(const Level& level)
     : grid(level.grid)
     , player(cellCenter(level.playerSpawn))
     , enemy(cellCenter(level.enemySpawn))
 {
     recalculateEnemyPath();
-    raycaster.castVisibility(player.getPosition(), grid);
+    castVisibility();
 }
 
 void World::update(float seconds, sf::Vector2f playerInputDirection)
@@ -20,7 +32,7 @@ void World::update(float seconds, sf::Vector2f playerInputDirection)
     }
     enemy.followPath(seconds);
 
-    raycaster.castVisibility(player.getPosition(), grid);
+    castVisibility();
 }
 
 DamageResult World::damageTileAt(sf::Vector2f worldPosition)
@@ -28,6 +40,8 @@ DamageResult World::damageTileAt(sf::Vector2f worldPosition)
     DamageResult result = grid.damageTile(cellContaining(worldPosition));
     if (result == DamageResult::DESTROYED)
     {
+        statistics.wallsDestroyed += 1;
+
         // The map's shape just changed, so the old path may be blocked or no longer the shortest.
         recalculateEnemyPath();
     }
@@ -59,13 +73,31 @@ const Pathfinder& World::getPathfinder() const
     return pathfinder;
 }
 
+const SimulationStatistics& World::getStatistics() const
+{
+    return statistics;
+}
+
 bool World::canPlayerSeeEnemy() const
 {
     return raycaster.hasLineOfSight(player.getPosition(), enemy.getPosition(), grid);
 }
 
+void World::castVisibility()
+{
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    raycaster.castVisibility(player.getPosition(), grid);
+    statistics.visibilityMilliseconds = millisecondsSince(start);
+}
+
 void World::recalculateEnemyPath()
 {
     enemyPathTarget = player.getCell();
-    enemy.setPath(pathfinder.findPath(grid, enemy.getCell(), enemyPathTarget));
+
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    std::vector<GridCell> path = pathfinder.findPath(grid, enemy.getCell(), enemyPathTarget);
+    statistics.pathfindingMilliseconds = millisecondsSince(start);
+    statistics.pathRecalculations += 1;
+
+    enemy.setPath(std::move(path));
 }
