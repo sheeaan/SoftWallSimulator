@@ -23,6 +23,7 @@ add_library(SoftWallSimulation STATIC
     src/simulation/Grid.cpp
     src/simulation/Level.cpp
     src/simulation/Player.cpp
+    src/simulation/Raycaster.cpp
     src/simulation/World.cpp)
 target_include_directories(SoftWallSimulation PUBLIC src)
 target_link_libraries(SoftWallSimulation PUBLIC SFML::System)
