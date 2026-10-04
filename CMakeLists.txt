@@ -32,6 +32,7 @@ target_link_libraries(SoftWallSimulation PUBLIC SFML::System)
 add_executable(SoftWallSimulator
     src/main.cpp
     src/presentation/Game.cpp
+    src/presentation/LightingRenderer.cpp
     src/presentation/TileMapRenderer.cpp)
 target_link_libraries(SoftWallSimulator PRIVATE SoftWallSimulation SFML::Graphics)
 

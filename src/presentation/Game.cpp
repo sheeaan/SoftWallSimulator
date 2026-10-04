@@ -12,6 +12,7 @@
 namespace
 {
     constexpr float MaximumFrameSeconds = 0.05f; // Longer frames (a dragged window, a breakpoint) are clamped.
+    constexpr float PlayerGlowDiameter = 3.5f;   // Tiles.
 
     // About 80% of the desktop at 16:9, so the window looks the same size on any display.
     sf::Vector2u chooseWindowSize()
@@ -33,7 +34,9 @@ Game::Game()
     : window(sf::VideoMode(chooseWindowSize()), "Soft Wall Simulator", sf::Style::Titlebar | sf::Style::Close)
     , world(parseLevel(getDefaultLevelRows()))
     , tileMapRenderer(world.getGrid())
+    , lightingRenderer(window.getSize())
     , playerShape(Player::HalfSize, 40)
+    , playerGlow(lightingRenderer.getGlowTexture())
 {
     window.setVerticalSyncEnabled(true);
 
@@ -44,6 +47,11 @@ Game::Game()
 
     playerShape.setOrigin(sf::Vector2f(Player::HalfSize, Player::HalfSize));
     playerShape.setFillColor(Palette::Player);
+
+    sf::Vector2f glowTextureSize(lightingRenderer.getGlowTexture().getSize());
+    playerGlow.setOrigin(glowTextureSize / 2.f);
+    playerGlow.setScale(sf::Vector2f(PlayerGlowDiameter / glowTextureSize.x, PlayerGlowDiameter / glowTextureSize.y));
+    playerGlow.setColor(Palette::PlayerGlow);
 }
 
 void Game::run()
@@ -88,12 +96,19 @@ void Game::render()
     window.clear(Palette::Background);
     window.setView(worldView);
 
+    // Everything drawn before the light map is darkened where the rays cannot reach.
     tileMapRenderer.drawFloor(window);
+    tileMapRenderer.drawWalls(window);
+    lightingRenderer.drawLightMap(window, worldView, world.getGrid(), world.getPlayer().getPosition(),
+                                  world.getVisibility());
 
+    // Everything drawn after it stays visible in the dark.
+    tileMapRenderer.drawWallEdges(window);
+
+    playerGlow.setPosition(world.getPlayer().getPosition());
+    window.draw(playerGlow, sf::BlendAdd);
     playerShape.setPosition(world.getPlayer().getPosition());
     window.draw(playerShape);
-
-    tileMapRenderer.drawWalls(window);
 
     window.display();
 }

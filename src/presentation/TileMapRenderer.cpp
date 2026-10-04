@@ -14,6 +14,7 @@ namespace
 TileMapRenderer::TileMapRenderer(const Grid& grid)
     : floorVertices(sf::PrimitiveType::Triangles)
     , wallVertices(sf::PrimitiveType::Triangles)
+    , wallEdgeVertices(sf::PrimitiveType::Triangles)
 {
     // The floor never changes, so it is built once. Walls draw on top of it.
     // Rows outside, columns inside: the same order the tiles sit in memory.
@@ -43,6 +44,7 @@ TileMapRenderer::TileMapRenderer(const Grid& grid)
 void TileMapRenderer::rebuildWalls(const Grid& grid)
 {
     wallVertices.clear();
+    wallEdgeVertices.clear();
     for (int row = 0; row < grid.getRowCount(); ++row)
     {
         for (int column = 0; column < grid.getColumnCount(); ++column)
@@ -71,6 +73,11 @@ void TileMapRenderer::drawWalls(sf::RenderTarget& target) const
     target.draw(wallVertices);
 }
 
+void TileMapRenderer::drawWallEdges(sf::RenderTarget& target) const
+{
+    target.draw(wallEdgeVertices);
+}
+
 void TileMapRenderer::appendHardWall(const Grid& grid, GridCell cell)
 {
     float left = static_cast<float>(cell.column);
@@ -83,22 +90,22 @@ void TileMapRenderer::appendHardWall(const Grid& grid, GridCell cell)
     // A rim on each side that faces walkable floor outlines the walls like a blueprint.
     if (grid.isWalkable(GridCell{cell.column, cell.row - 1}))
     {
-        appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + HardWallEdgeWidth),
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + HardWallEdgeWidth),
                    Palette::HardWallEdge);
     }
     if (grid.isWalkable(GridCell{cell.column, cell.row + 1}))
     {
-        appendQuad(wallVertices, sf::Vector2f(left, bottom - HardWallEdgeWidth), sf::Vector2f(right, bottom),
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - HardWallEdgeWidth), sf::Vector2f(right, bottom),
                    Palette::HardWallEdge);
     }
     if (grid.isWalkable(GridCell{cell.column - 1, cell.row}))
     {
-        appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(left + HardWallEdgeWidth, bottom),
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + HardWallEdgeWidth, bottom),
                    Palette::HardWallEdge);
     }
     if (grid.isWalkable(GridCell{cell.column + 1, cell.row}))
     {
-        appendQuad(wallVertices, sf::Vector2f(right - HardWallEdgeWidth, top), sf::Vector2f(right, bottom),
+        appendQuad(wallEdgeVertices, sf::Vector2f(right - HardWallEdgeWidth, top), sf::Vector2f(right, bottom),
                    Palette::HardWallEdge);
     }
 }
@@ -110,10 +117,15 @@ void TileMapRenderer::appendSoftWall(GridCell cell)
     float right = static_cast<float>(cell.column) + 1.f - SoftWallInset;
     float bottom = static_cast<float>(cell.row) + 1.f - SoftWallInset;
 
-    // A light border with a darker body, like a crate seen from above.
-    appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), Palette::SoftWallEdge);
-    appendQuad(wallVertices,
-               sf::Vector2f(left + SoftWallEdgeWidth, top + SoftWallEdgeWidth),
-               sf::Vector2f(right - SoftWallEdgeWidth, bottom - SoftWallEdgeWidth),
-               Palette::SoftWall);
+    // A darker body inside a bright border, like a crate seen from above.
+    appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), Palette::SoftWall);
+
+    appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + SoftWallEdgeWidth),
+               Palette::SoftWallEdge);
+    appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - SoftWallEdgeWidth), sf::Vector2f(right, bottom),
+               Palette::SoftWallEdge);
+    appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + SoftWallEdgeWidth, bottom),
+               Palette::SoftWallEdge);
+    appendQuad(wallEdgeVertices, sf::Vector2f(right - SoftWallEdgeWidth, top), sf::Vector2f(right, bottom),
+               Palette::SoftWallEdge);
 }

@@ -5,7 +5,9 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 
-// Draws the grid from two vertex arrays, so the floor and the walls are one draw call each.
+// Draws the grid from vertex arrays, so each layer is one draw call.
+// Floor and wall bodies are drawn before the light map, so darkness covers them.
+// Wall edges are drawn after it, so the outline of the map stays readable in the dark.
 class TileMapRenderer
 {
 public:
@@ -16,6 +18,7 @@ public:
 
     void drawFloor(sf::RenderTarget& target) const;
     void drawWalls(sf::RenderTarget& target) const;
+    void drawWallEdges(sf::RenderTarget& target) const;
 
 private:
     void appendHardWall(const Grid& grid, GridCell cell);
@@ -23,4 +26,5 @@ private:
 
     sf::VertexArray floorVertices;
     sf::VertexArray wallVertices;
+    sf::VertexArray wallEdgeVertices;
 };
