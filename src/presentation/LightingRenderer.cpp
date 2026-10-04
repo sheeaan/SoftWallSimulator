@@ -34,7 +34,7 @@ namespace
         return color * sf::Color(level, level, level);
     }
 
-    // Maps a world position onto the gradient texture, centred on the light, so brightness falls with distance.
+    // Maps a world position onto the gradient texture, centered on the light, so brightness falls with distance.
     // Positions beyond the light radius land outside the texture, where its black edge repeats.
     sf::Vertex makeLightVertex(sf::Vector2f worldPosition, sf::Vector2f lightOrigin)
     {

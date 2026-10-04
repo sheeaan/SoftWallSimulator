@@ -33,6 +33,7 @@ target_link_libraries(SoftWallSimulation PUBLIC SFML::System)
 # Presentation: the window, input, and drawing.
 add_executable(SoftWallSimulator
     src/main.cpp
+    src/presentation/AlgorithmOverlay.cpp
     src/presentation/Game.cpp
     src/presentation/LightingRenderer.cpp
     src/presentation/TileMapRenderer.cpp)
