@@ -18,7 +18,7 @@
 class LightingRenderer
 {
 public:
-    static constexpr float LightRadius = 16.f; // Tiles. The light fades to the ambient level at this distance.
+    static constexpr float LightRadius = 24.f; // Tiles. The light fades to the ambient level at this distance.
 
     explicit LightingRenderer(sf::Vector2u windowSize);
 

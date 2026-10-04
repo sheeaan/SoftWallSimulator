@@ -58,8 +58,11 @@ void StatisticsPanel::update(float seconds, const World& world)
     const SimulationStatistics& statistics = world.getStatistics();
     std::size_t nodesExpanded = world.getPathfinder().getExpandedCells().size();
 
-    std::string routeText = std::to_string(world.getEnemy().getPath().size()) + " cells";
-    if (world.getEnemy().getPath().empty())
+    // Count only the cells still ahead of the enemy, not the ones it has already walked.
+    const Enemy& enemy = world.getEnemy();
+    std::size_t cellsAhead = enemy.getPath().size() - enemy.getNextWaypointIndex();
+    std::string routeText = std::to_string(cellsAhead) + " cells";
+    if (enemy.getPath().empty())
     {
         routeText = "no route";
     }
@@ -77,8 +80,8 @@ void StatisticsPanel::update(float seconds, const World& world)
           << std::setprecision(3) << statistics.visibilityMilliseconds << " ms\n";
     lines << std::setw(LabelWidth) << "Path (A*)" << std::setw(ValueWidth) << (std::to_string(nodesExpanded) + " nodes")
           << std::setprecision(3) << statistics.pathfindingMilliseconds << " ms\n";
-    lines << std::setw(LabelWidth) << "Enemy route" << std::setw(ValueWidth) << routeText
-          << statistics.pathRecalculations << " re-plans\n";
+    lines << std::setw(LabelWidth) << "Enemy route" << routeText << '\n';
+    lines << std::setw(LabelWidth) << "Re-plans" << statistics.pathRecalculations << '\n';
     lines << std::setw(LabelWidth) << "Walls broken" << statistics.wallsDestroyed << '\n';
     lines << std::setw(LabelWidth) << "Enemy" << enemyText << "\n\n";
     lines << "WASD move   Click break wall   Tab algorithm view";

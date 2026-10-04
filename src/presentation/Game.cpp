@@ -145,8 +145,8 @@ void Game::handleLeftClick(sf::Vector2i pixelPosition)
     {
         tileMapRenderer.rebuildWalls(world.getGrid());
         tileMapRenderer.flashTile(clickedCell);
-        debrisParticles.spawnBurst(clickedCenter, 28, Palette::Debris, 5.f, 0.9f, 0.16f);
-        sparkParticles.spawnBurst(clickedCenter, 36, Palette::Spark, 10.f, 0.45f, 0.07f);
+        debrisParticles.spawnBurst(clickedCenter, 32, Palette::Debris, 5.f, 0.9f, 0.2f);
+        sparkParticles.spawnBurst(clickedCenter, 40, Palette::Spark, 10.f, 0.5f, 0.1f);
         algorithmOverlay.flashPath();
         shakeTrauma = std::min(1.f, shakeTrauma + DestroyShake);
     }
@@ -154,15 +154,15 @@ void Game::handleLeftClick(sf::Vector2i pixelPosition)
     {
         tileMapRenderer.rebuildWalls(world.getGrid());
         tileMapRenderer.flashTile(clickedCell);
-        debrisParticles.spawnBurst(clickedCenter, 8, Palette::Debris, 3.5f, 0.6f, 0.12f);
-        sparkParticles.spawnBurst(clickedCenter, 12, Palette::Spark, 8.f, 0.3f, 0.06f);
+        debrisParticles.spawnBurst(clickedCenter, 10, Palette::Debris, 3.5f, 0.6f, 0.15f);
+        sparkParticles.spawnBurst(clickedCenter, 14, Palette::Spark, 8.f, 0.35f, 0.09f);
         shakeTrauma = std::min(1.f, shakeTrauma + DamageShake);
     }
     else if (clickedHardWall)
     {
         // Hard walls shrug the hit off: a flash and a few cold sparks, but no damage.
         tileMapRenderer.flashTile(clickedCell);
-        sparkParticles.spawnBurst(clickedCenter, 10, Palette::HardWallSpark, 7.f, 0.25f, 0.05f);
+        sparkParticles.spawnBurst(clickedCenter, 12, Palette::HardWallSpark, 7.f, 0.3f, 0.08f);
         shakeTrauma = std::min(1.f, shakeTrauma + HardWallShake);
     }
 }
