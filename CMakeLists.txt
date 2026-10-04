@@ -27,10 +27,17 @@ add_library(SoftWallSimulation STATIC
 target_include_directories(SoftWallSimulation PUBLIC src)
 target_link_libraries(SoftWallSimulation PUBLIC SFML::System)
 
+# Presentation: the window, input, and drawing.
+add_executable(SoftWallSimulator
+    src/main.cpp
+    src/presentation/Game.cpp
+    src/presentation/TileMapRenderer.cpp)
+target_link_libraries(SoftWallSimulator PRIVATE SoftWallSimulation SFML::Graphics)
+
 add_executable(SoftWallTests tests/SimulationTests.cpp)
 target_link_libraries(SoftWallTests PRIVATE SoftWallSimulation)
 
-foreach(soft_wall_target SoftWallSimulation SoftWallTests)
+foreach(soft_wall_target SoftWallSimulation SoftWallSimulator SoftWallTests)
     if(MSVC)
         target_compile_options(${soft_wall_target} PRIVATE /W4 /permissive-)
     else()
