@@ -19,6 +19,10 @@ public:
 
     void update(float seconds, sf::Vector2f playerInputDirection);
 
+    // Damages the tile under a world position. When a soft wall breaks, the enemy re-plans
+    // inside this same call, so the new path exists before the next frame is drawn.
+    DamageResult damageTileAt(sf::Vector2f worldPosition);
+
     const Grid& getGrid() const;
     const Player& getPlayer() const;
     const Enemy& getEnemy() const;

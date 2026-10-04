@@ -23,6 +23,17 @@ void World::update(float seconds, sf::Vector2f playerInputDirection)
     raycaster.castVisibility(player.getPosition(), grid);
 }
 
+DamageResult World::damageTileAt(sf::Vector2f worldPosition)
+{
+    DamageResult result = grid.damageTile(cellContaining(worldPosition));
+    if (result == DamageResult::DESTROYED)
+    {
+        // The map's shape just changed, so the old path may be blocked or no longer the shortest.
+        recalculateEnemyPath();
+    }
+    return result;
+}
+
 const Grid& World::getGrid() const
 {
     return grid;
