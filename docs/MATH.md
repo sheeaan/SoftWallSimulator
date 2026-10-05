@@ -4,6 +4,8 @@ Each section derives one formula the code uses and names the function that imple
 The in-game math view (press **M**) shows the same numbers live.
 The test suite checks the worked examples below.
 
+![The math view: the DDA trace toward the cursor with its table, the hovered cell's memory layout, and A* costs around the site](math-view.jpg)
+
 World positions are measured in tiles, so cell $(c, r)$ covers $c \le x < c + 1$ and $r \le y < r + 1$.
 The map is $W \times H = 48 \times 27$ cells.
 
@@ -153,7 +155,7 @@ The test "a bullet hole gives sight only along the line of fire" checks exactly 
 
 ## 4. Light from the visibility polygon
 
-`Raycaster::Raycaster`, `LightingRenderer::drawLightMap`.
+`Raycaster::Raycaster`, `LightingRenderer::addLight`.
 
 The 360 ray directions are computed once:
 
