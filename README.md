@@ -1,26 +1,26 @@
 # Soft Wall Simulator
 
 A 2D, top-down round of Rainbow Six Siege's bomb mode in C++17 and SFML 3, built without an engine.
-You play Thermite, the attacker. An AI Rook defends bomb site A.
-During preparation, Rook reinforces walls with steel while you drone the building.
-In the action phase you open a route with bullets, breach charges, and exothermic charges, then plant the defuser.
-Underneath, 360 DDA rays light the map through every hole, and Rook's A\* path re-plans the instant a wall breaks.
+You play Striker, the attacker. An AI Sentry defends bomb site A.
+During preparation, Sentry reinforces walls with steel while you drone the building.
+In the action phase you open a route with bullets, breach charges, and hard breach charges, then plant the defuser.
+Underneath, 360 DDA rays light the map through every hole, and Sentry's A\* path re-plans the instant a wall breaks.
 Press **M** to see the math behind all of it, with the real numbers the code computed.
 
-![The action phase: a bullet slot in the drywall throws a beam across the hall onto Rook's reinforced steel](docs/gameplay.jpg)
+![The action phase: a bullet slot in the drywall throws a beam across the hall onto Sentry's reinforced steel](docs/gameplay.jpg)
 
 ## How a round plays
 
-1. **Preparation, 0:20.** Rook walks to each planned wall and reinforces it. You wait at spawn. Press F to drive a drone; it rolls under barricades, and whatever it sees is spotted, marked in orange through walls.
+1. **Preparation, 0:20.** Sentry walks to each planned wall and reinforces it. You wait at spawn. Press F to drive a drone; it rolls under barricades, and whatever it sees is spotted, marked in orange through walls.
 2. **Action, 3:00.** Open a way in:
    - Shoot drywall to drill a slot you can see through, or break it with three hits.
    - Break a barricade with one shot.
    - Stick a breach charge (Q) on drywall or a barricade to blow it open, along with its drywall neighbors.
-   - Stick an exothermic charge (E) on reinforced steel to burn through it.
-3. **The defender.** The AI Rook guards the site until it sees you. Then it hunts you, re-planning its route through every new hole the moment the hole opens.
-4. **The end.** Stand inside bomb site A for 4 seconds to plant the defuser and win. If Rook reaches you, or the clock runs out, the defenders win. Press R for the next round.
+   - Stick a hard breach charge (E) on reinforced steel to burn through it.
+3. **The defender.** The AI Sentry guards the site until it sees you. Then it hunts you, re-planning its route through every new hole the moment the hole opens.
+4. **The end.** Stand inside bomb site A for 4 seconds to plant the defuser and win. If Sentry reaches you, or the clock runs out, the defenders win. Press R for the next round.
 
-![The preparation phase: Rook plates the walls around bomb site A while the barricades hold the doorways](docs/preparation.jpg)
+![The preparation phase: Sentry plates the walls around bomb site A while the barricades hold the doorways](docs/preparation.jpg)
 
 ## Highlights
 
@@ -30,8 +30,8 @@ Press **M** to see the math behind all of it, with the real numbers the code com
 - **The visibility polygon is the light.** Each light's ray hits form a triangle fan. The fans are added into a light map with a radial gradient, and the light map is multiplied over the scene.
 - **A\* pathfinding.** Moves go in 8 directions with integer costs of 10 and 14 and never cut a wall's corner. The search uses the octile heuristic, a binary heap, and flat per-cell arrays that are reused across searches.
 - **A defender with goals.** A small state machine (preparing, guarding, hunting) gives A\* different goals: the floor beside the next wall to reinforce, the site's guard points, then you. Every tile change re-plans the current goal in the same call.
-- **Siege rules.** Reinforcement, exothermic and breach charges with fuses, barricades, a drone, spotting, a bomb site, and a round clock with preparation and action phases.
-- **Siege look.** Drywall over wooden studs, concrete, braced steel plates, and plank barricades. The attacker is blue and the defender orange, and a shader adds drone-camera grain, scanlines, and a vignette.
+- **Siege rules.** Reinforcement, breach and hard breach charges with fuses, barricades, a drone, spotting, a bomb site, and a round clock with preparation and action phases.
+- **Siege look.** Drywall over wooden studs, concrete, braced steel plates, and plank barricades. The attacker is blue and the defender orange, and a shader adds drone-camera grain, scanlines, and a vignette. The banner and the result screen show the official Striker and Sentry operator icons, and the Rainbow Six emblem heads the panel. The art comes from Ubisoft's official fan kits.
 - **Math view (M).** Every cell A\* expanded shows g, h, and f, with an arrow to its parent. The ray toward the cursor is traced step by step, with a table of tMaxX, tMaxY, tDeltaX, and tDeltaY. The hovered cell shows its index, its byte offset, and the octile formula worked with its own numbers. [docs/MATH.md](docs/MATH.md) derives every formula.
 - **Algorithm view (Tab).** It shows the 360 rays, the polygon outline, the cells A\* expanded colored by expansion order, and the defender's live path.
 - **Headless tests.** The simulation layer contains no rendering code, so its 32 tests run without a window, including two full rounds.
@@ -48,8 +48,8 @@ The longest A\* search measured, 656 cells across the whole map, took about 0.2 
 | W A S D | Move. While the drone is active, drive it instead. |
 | Left click | Shoot the wall under the cursor. Each hit on drywall drills a slot along your line of fire, and the third hit breaks it. One hit breaks a barricade. Concrete and steel never break. |
 | Q | Breach charge on the wall under the cursor. You carry 3. The wall must touch your cell. |
-| E | Exothermic charge on the wall under the cursor. You carry 2. Only this opens reinforced steel. |
-| F | Deploy the drone, or switch between it and Thermite. |
+| E | Hard breach charge on the wall under the cursor. You carry 2. Only this opens reinforced steel. |
+| F | Deploy the drone, or switch between it and Striker. |
 | Tab | Toggle the algorithm view. |
 | M | Toggle the math view. Point the cursor at anything to see its numbers. |
 | R | Start the round over. |
@@ -99,7 +99,7 @@ src/
     MathView                The M view.
     TextBatch               Draws hundreds of labels in one draw call.
     StatisticsPanel         Live numbers.
-    HeadsUpDisplay          Operator banner, round clock, status, results, key prompts.
+    HeadsUpDisplay          Operator banner with the operator icons, round clock, status, results, key prompts.
 tests/
   SimulationTests.cpp       Framework-free tests that print PASS or FAIL.
 docs/
@@ -109,10 +109,10 @@ docs/
 Each frame runs in this order:
 
 1. Handle events. A click calls `World::damageTileAt`; Q and E call `World::placeCharge`.
-2. Update the world: move Thermite or the drone, burn the fuses, run the defender, cast the rays, update spotting and the round.
+2. Update the world: move Striker or the drone, burn the fuses, run the defender, cast the rays, update spotting and the round.
 3. Rebuild the wall vertices if any tile changed, and start the effects for detonations and reinforcements.
 4. Draw the floor, the dust and splinters, and the wall bodies into the scene texture, then multiply the light map over them.
-5. Draw what must stay visible in the dark: outlines, the bomb site, flashes, gadgets, the defender (when in sight), Thermite, and sparks.
+5. Draw what must stay visible in the dark: outlines, the bomb site, flashes, gadgets, the defender (when in sight), Striker, and sparks.
 6. Copy the scene to the window through the drone-camera shader.
 7. Draw the math view, the statistics panel, and the banner on top, where the shader cannot blur them.
 
@@ -162,13 +162,13 @@ The defender is a state machine that only changes A\*'s goal:
 
 - **Preparing.** For each planned wall, the defender searches to every open side and walks to the closest. It stands there for 1.2 seconds, and the wall turns to steel.
 - **Guarding.** It walks between the site's guard points and pauses at each.
-- **Hunting.** The moment it has line of sight to Thermite during the action phase, it chases. It re-plans whenever Thermite changes cell or any tile changes, and it wins the round on contact.
+- **Hunting.** The moment it has line of sight to Striker during the action phase, it chases. It re-plans whenever Striker changes cell or any tile changes, and it wins the round on contact.
 
 ### Destruction and charges
 
 A click maps from pixel to world through the same view the frame was drawn with, so it stays accurate during screen shake.
 `std::floor`, not a cast, maps world to cell, so a click left of the map never lands in column 0.
-A charge goes on a wall that touches Thermite's cell and burns down its fuse: 1.5 seconds for a breach charge, 3 for an exothermic one.
+A charge goes on a wall that touches Striker's cell and burns down its fuse: 1.5 seconds for a breach charge, 3 for a hard breach charge.
 It then opens its wall and every neighbor, up, down, left, and right, that the same charge could open.
 Every tile it opens is reported once, and the defender re-plans once for the whole blast.
 
@@ -197,7 +197,7 @@ PASS  End to end: the DDA trace agrees with line of sight, before and after a bu
 PASS  End to end: along the enemy's route, each step adds its own cost to g
 PASS  Reinforcing turns drywall into steel that blocks walking and vision
 PASS  Bullets cannot open a reinforced wall
-PASS  An exothermic charge burns through a reinforced wall after its 3-second fuse
+PASS  A hard breach charge burns through a reinforced wall after its 3-second fuse
 PASS  A breach charge opens a soft wall and its soft neighbors, but not steel
 PASS  A barricade blocks the doorway and breaks in one shot
 PASS  The drone is faster than the attacker and casts its own 360 rays
@@ -207,7 +207,7 @@ PASS  The defender reinforces its planned walls during preparation
 PASS  When the action phase runs out, the defenders win
 PASS  When the defender reaches the attacker, the defenders win
 PASS  The defender guards the site until it spots the attacker, then hunts
-PASS  End to end: the defender reinforces, Thermite burns through, and the defender hunts through the breach
+PASS  End to end: the defender reinforces, the attacker hard-breaches, and the defender hunts through the breach
 PASS  End to end: the attacker breaks a barricade, holds the site, and wins
 
 32 passed, 0 failed
@@ -220,7 +220,7 @@ Levels without a bomb site run in free play: no clock, and the defender hunts fr
 ## Engineering choices
 
 - **Warnings are errors.** Project targets build at `/W4 /permissive-` on MSVC and `-Wall -Wextra -Wpedantic` elsewhere. SFML is included as a system dependency, so its headers do not trip these warnings.
-- **No manual memory management.** There is no `new` or `delete`. Containers and SFML objects own every resource. Classes whose texts point at a member font delete their copy operations.
+- **No manual memory management.** There is no `new` or `delete`. Containers and SFML objects own every resource. Classes whose texts or sprites point at a member font or texture delete their copy operations.
 - **Buffers are reused in hot paths.** Rays, the light map, particles, and the algorithm view keep their buffers between frames. A\* reuses its per-cell arrays, so only the returned path allocates.
 - **Batched drawing.** Each layer of the map is one vertex array. `TextBatch` packs labels into one vertex array over the font's glyph texture, so hundreds of A\* numbers cost two draw calls, one per text size, instead of one per label.
 - **One revision counter.** The grid counts every tile change, so the renderer rebuilds walls once per frame no matter what changed them: a shot, a charge, or a reinforcement.
@@ -231,4 +231,5 @@ Levels without a bomb site run in free play: no clock, and the defender hunts fr
 
 - [SFML 3.0.2](https://www.sfml-dev.org/) under the zlib license, downloaded at configure time.
 - [JetBrains Mono](https://www.jetbrains.com/lp/mono/) and [Barlow Condensed](https://github.com/jpt/barlow) under the SIL Open Font License 1.1. The fonts and their licenses are in `assets/fonts/`.
-- Rainbow Six Siege, Thermite, Rook, and the gadget names belong to Ubisoft. This fan project uses no Ubisoft art, logos, or sounds, and it is not affiliated with or endorsed by Ubisoft.
+- The Striker and Sentry operator icons and the Rainbow Six Siege emblem in `assets/siege/` come from Ubisoft's official Rainbow Six Siege fan kits. `assets/siege/CREDITS.txt` names the kit each file came from.
+- Rainbow Six Siege, its logos, its operators, and the gadget names are trademarks of Ubisoft Entertainment. This is a non-commercial fan project. It is not affiliated with, sponsored by, or endorsed by Ubisoft.
