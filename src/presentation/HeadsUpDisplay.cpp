@@ -55,9 +55,9 @@ HeadsUpDisplay::HeadsUpDisplay(sf::Vector2u windowPixelSize)
     : font(loadFont("BarlowCondensed-SemiBold.ttf"))
     , windowSize(windowPixelSize)
     , unit(static_cast<float>(windowPixelSize.y) / 100.f)
-    , attackerText(font, "THERMITE", static_cast<unsigned int>(unit * 2.4f))
+    , attackerText(font, "STRIKER", static_cast<unsigned int>(unit * 2.4f))
     , clockText(font, "", static_cast<unsigned int>(unit * 2.4f))
-    , defenderText(font, "ROOK", static_cast<unsigned int>(unit * 2.4f))
+    , defenderText(font, "SENTRY", static_cast<unsigned int>(unit * 2.4f))
     , statusText(font, "", static_cast<unsigned int>(unit * 2.1f))
     , messageText(font, "", static_cast<unsigned int>(unit * 2.f))
     , resultTitle(font, "", static_cast<unsigned int>(unit * 6.f))
@@ -108,7 +108,7 @@ HeadsUpDisplay::HeadsUpDisplay(sf::Vector2u windowPixelSize)
     resultHint.setFillColor(Palette::HudMutedText);
     centerText(resultHint, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f + unit * 5.5f));
 
-    layOutPrompts(World::BreachChargeCount, World::ExothermicChargeCount);
+    layOutPrompts(World::BreachChargeCount, World::HardBreachChargeCount);
 }
 
 void HeadsUpDisplay::update(const World& world, float seconds)
@@ -143,7 +143,7 @@ void HeadsUpDisplay::update(const World& world, float seconds)
     }
     else if (round.getPhase() == RoundPhase::PREPARATION)
     {
-        statusText.setString("ROOK IS REINFORCING.  PRESS F TO DRONE IN.");
+        statusText.setString("SENTRY IS REINFORCING.  PRESS F TO DRONE IN.");
         statusText.setFillColor(Palette::HudMutedText);
     }
     else if (world.isEnemySpotted())
@@ -181,7 +181,7 @@ void HeadsUpDisplay::update(const World& world, float seconds)
             reason = "THE DEFUSER IS PLANTED";
             break;
         case RoundEndReason::ATTACKER_ELIMINATED:
-            reason = "THERMITE WAS CAUGHT";
+            reason = "STRIKER WAS CAUGHT";
             break;
         case RoundEndReason::TIME_EXPIRED:
             reason = "TIME RAN OUT";
@@ -195,10 +195,10 @@ void HeadsUpDisplay::update(const World& world, float seconds)
     }
 
     int breachChargesLeft = world.getChargesLeft(ChargeType::BREACH);
-    int exothermicChargesLeft = world.getChargesLeft(ChargeType::EXOTHERMIC);
-    if (breachChargesLeft != promptedBreachCharges || exothermicChargesLeft != promptedExothermicCharges)
+    int hardBreachChargesLeft = world.getChargesLeft(ChargeType::HARD_BREACH);
+    if (breachChargesLeft != promptedBreachCharges || hardBreachChargesLeft != promptedHardBreachCharges)
     {
-        layOutPrompts(breachChargesLeft, exothermicChargesLeft);
+        layOutPrompts(breachChargesLeft, hardBreachChargesLeft);
     }
 }
 
@@ -255,10 +255,10 @@ void HeadsUpDisplay::draw(sf::RenderTarget& target) const
     target.setView(previousView);
 }
 
-void HeadsUpDisplay::layOutPrompts(int breachChargesLeft, int exothermicChargesLeft)
+void HeadsUpDisplay::layOutPrompts(int breachChargesLeft, int hardBreachChargesLeft)
 {
     promptedBreachCharges = breachChargesLeft;
-    promptedExothermicCharges = exothermicChargesLeft;
+    promptedHardBreachCharges = hardBreachChargesLeft;
     keycaps.clear();
     keyTexts.clear();
     actionTexts.clear();
@@ -268,7 +268,7 @@ void HeadsUpDisplay::layOutPrompts(int breachChargesLeft, int exothermicChargesL
         KeyPrompt{"W A S D", "MOVE"},
         KeyPrompt{"LMB", "SHOOT"},
         KeyPrompt{"Q", "BREACH ×" + std::to_string(breachChargesLeft)},
-        KeyPrompt{"E", "EXOTHERMIC ×" + std::to_string(exothermicChargesLeft)},
+        KeyPrompt{"E", "HARD BREACH ×" + std::to_string(hardBreachChargesLeft)},
         KeyPrompt{"F", "DRONE"},
         KeyPrompt{"TAB", "ALGORITHMS"},
         KeyPrompt{"M", "MATH"},

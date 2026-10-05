@@ -30,7 +30,7 @@ public:
     void draw(sf::RenderTarget& target) const;
 
 private:
-    void layOutPrompts(int breachChargesLeft, int exothermicChargesLeft);
+    void layOutPrompts(int breachChargesLeft, int hardBreachChargesLeft);
 
     sf::Font font;
     sf::Vector2f windowSize;
@@ -56,7 +56,7 @@ private:
     sf::Text resultHint;
 
     int promptedBreachCharges = -1;
-    int promptedExothermicCharges = -1;
+    int promptedHardBreachCharges = -1;
     std::vector<sf::RectangleShape> keycaps;
     std::vector<sf::Text> keyTexts;
     std::vector<sf::Text> actionTexts;

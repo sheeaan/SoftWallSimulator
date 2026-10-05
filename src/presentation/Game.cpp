@@ -29,7 +29,7 @@ namespace
     constexpr float MaximumShakeOffset = 0.35f; // Tiles, at full trauma.
     constexpr float ShakeDecayPerSecond = 1.6f;
     constexpr float BreachShake = 0.9f;
-    constexpr float ExothermicShake = 0.75f;
+    constexpr float HardBreachShake = 0.75f;
     constexpr float DestroyShake = 0.55f;
     constexpr float DamageShake = 0.22f;
     constexpr float RicochetShake = 0.08f;
@@ -135,7 +135,7 @@ void Game::processEvents()
             }
             else if (keyPressed->scancode == sf::Keyboard::Scan::E)
             {
-                handleChargeKey(ChargeType::EXOTHERMIC);
+                handleChargeKey(ChargeType::HARD_BREACH);
             }
             else if (keyPressed->scancode == sf::Keyboard::Scan::F)
             {
@@ -241,7 +241,7 @@ void Game::handleChargeKey(ChargeType type)
         }
         else
         {
-            headsUpDisplay.showMessage("EXOTHERMIC CHARGES GO ON DRYWALL OR STEEL");
+            headsUpDisplay.showMessage("HARD BREACH CHARGES GO ON DRYWALL OR STEEL");
         }
         break;
     case ChargePlacement::ALREADY_CHARGED:
@@ -327,10 +327,10 @@ void Game::spawnWorldEffects()
         }
         else
         {
-            // The exothermic charge finishes burning through: a shower of molten sparks.
+            // The hard breach charge finishes burning through: a shower of molten sparks.
             sparkParticles.spawnBurst(center, 80, Palette::MoltenSpark, 7.f, 0.9f, 0.1f);
             debrisParticles.spawnBurst(center, 20, Palette::PlasterDust, 3.f, 1.f, 0.24f);
-            shakeTrauma = std::min(1.f, shakeTrauma + ExothermicShake);
+            shakeTrauma = std::min(1.f, shakeTrauma + HardBreachShake);
         }
         for (const GridCell& cell : detonation.destroyedCells)
         {
@@ -349,10 +349,10 @@ void Game::spawnWorldEffects()
         sparkParticles.spawnBurst(cellCenter(cell), 14, Palette::ReinforceSpark, 5.f, 0.35f, 0.07f);
     }
 
-    // A burning exothermic charge sprays molten sparks the whole time its fuse runs.
+    // A burning hard breach charge sprays molten sparks the whole time its fuse runs.
     for (const Charge& charge : world.getCharges())
     {
-        if (charge.type == ChargeType::EXOTHERMIC)
+        if (charge.type == ChargeType::HARD_BREACH)
         {
             sparkParticles.spawnBurst(cellCenter(charge.wall), 2, Palette::MoltenSpark, 3.5f, 0.35f, 0.07f);
         }

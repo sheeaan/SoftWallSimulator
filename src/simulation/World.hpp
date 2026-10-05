@@ -27,7 +27,7 @@ struct SimulationStatistics
 enum class ChargeType
 {
     BREACH,    // Breach charge: blows out a soft wall or barricade and its soft neighbors. Useless on steel.
-    EXOTHERMIC // Thermite's exothermic charge: burns through reinforced walls as well as drywall.
+    HARD_BREACH // Hard breach charge: burns through reinforced walls as well as drywall.
 };
 
 enum class ChargePlacement
@@ -69,9 +69,9 @@ class World
 {
 public:
     static constexpr int BreachChargeCount = 3;
-    static constexpr int ExothermicChargeCount = 2;
+    static constexpr int HardBreachChargeCount = 2;
     static constexpr float BreachFuseSeconds = 1.5f;
-    static constexpr float ExothermicFuseSeconds = 3.f;
+    static constexpr float HardBreachFuseSeconds = 3.f;
     static constexpr float ReinforceSeconds = 1.2f;
     static constexpr float SpottedSeconds = 4.f;
     static constexpr float GuardPauseSeconds = 3.f;
@@ -151,7 +151,7 @@ private:
 
     std::vector<Charge> charges;
     int breachChargesLeft = BreachChargeCount;
-    int exothermicChargesLeft = ExothermicChargeCount;
+    int hardBreachChargesLeft = HardBreachChargeCount;
     std::vector<Detonation> detonations;
     std::vector<GridCell> reinforcedCells;
     std::vector<RayHit> noVisibility; // Always empty: the drone's visibility while nobody drives it.

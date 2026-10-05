@@ -11,7 +11,7 @@ enum class TileType : std::uint8_t
     EMPTY,
     SOFT_WALL,       // Drywall. Bullets drill slots in it, and the third hit breaks it.
     HARD_WALL,       // Concrete. Nothing breaks it.
-    REINFORCED_WALL, // Drywall the defender covered in steel. Only an exothermic charge breaks it.
+    REINFORCED_WALL, // Drywall the defender covered in steel. Only a hard breach charge breaks it.
     BARRICADE        // Wooden planks across a doorway. One hit breaks them, and a drone rolls under them.
 };
 

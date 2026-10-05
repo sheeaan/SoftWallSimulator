@@ -41,7 +41,7 @@ namespace Palette
     inline constexpr sf::Color ReinforceSpark{200, 215, 235};
     inline constexpr sf::Color ChargeBody{40, 42, 48};
     inline constexpr sf::Color BreachChargeLight{255, 60, 60};
-    inline constexpr sf::Color ExothermicGlow{255, 120, 30};
+    inline constexpr sf::Color HardBreachGlow{255, 120, 30};
     inline constexpr sf::Color DroneBody{30, 34, 44};
     inline constexpr sf::Color DroneRing{54, 150, 255};
     inline constexpr sf::Color SpottedMarker{255, 138, 36};

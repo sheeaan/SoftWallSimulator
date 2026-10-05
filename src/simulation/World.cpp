@@ -13,7 +13,7 @@ namespace
         return elapsed.count();
     }
 
-    // Which tiles each charge can open. A breach charge cannot touch steel; an exothermic charge burns through it.
+    // Which tiles each charge can open. A breach charge cannot touch steel; a hard breach charge burns through it.
     bool canChargeOpen(ChargeType type, TileType tile)
     {
         if (type == ChargeType::BREACH)
@@ -29,7 +29,7 @@ namespace
         {
             return World::BreachFuseSeconds;
         }
-        return World::ExothermicFuseSeconds;
+        return World::HardBreachFuseSeconds;
     }
 }
 
@@ -148,7 +148,7 @@ ChargePlacement World::placeCharge(ChargeType type, sf::Vector2f worldPosition)
     }
     else
     {
-        exothermicChargesLeft -= 1;
+        hardBreachChargesLeft -= 1;
     }
     return ChargePlacement::PLACED;
 }
@@ -238,7 +238,7 @@ int World::getChargesLeft(ChargeType type) const
     {
         return breachChargesLeft;
     }
-    return exothermicChargesLeft;
+    return hardBreachChargesLeft;
 }
 
 DefenderState World::getDefenderState() const

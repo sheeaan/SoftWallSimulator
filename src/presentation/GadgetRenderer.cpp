@@ -14,8 +14,8 @@ namespace
 {
     constexpr float BreachPadSize = 0.38f;   // Tiles.
     constexpr float BreachLightSize = 0.12f;
-    constexpr float ExothermicWidth = 0.56f; // Tiles. Thermite's charge is the bigger, brighter unit.
-    constexpr float ExothermicHeight = 0.3f;
+    constexpr float HardBreachWidth = 0.56f; // Tiles. The hard breach charge is the bigger, brighter unit.
+    constexpr float HardBreachHeight = 0.3f;
     constexpr float FuseBarHeight = 0.07f;
     constexpr float DroneRadius = 0.18f;
     constexpr float SpottedMarkerRadius = 0.62f;
@@ -26,7 +26,7 @@ namespace
         {
             return World::BreachFuseSeconds;
         }
-        return World::ExothermicFuseSeconds;
+        return World::HardBreachFuseSeconds;
     }
 }
 
@@ -126,9 +126,9 @@ void GadgetRenderer::appendCharge(const Charge& charge, float elapsedSeconds)
     float fuseLeft = std::max(0.f, charge.secondsLeft / fuseSecondsFor(charge.type)); // 1 when placed, 0 at detonation.
 
     sf::Vector2f halfSize(BreachPadSize / 2.f, BreachPadSize / 2.f);
-    if (charge.type == ChargeType::EXOTHERMIC)
+    if (charge.type == ChargeType::HARD_BREACH)
     {
-        halfSize = sf::Vector2f(ExothermicWidth / 2.f, ExothermicHeight / 2.f);
+        halfSize = sf::Vector2f(HardBreachWidth / 2.f, HardBreachHeight / 2.f);
     }
     appendQuad(chargeShapes, center - halfSize, center + halfSize, Palette::ChargeBody);
 
@@ -145,8 +145,8 @@ void GadgetRenderer::appendCharge(const Charge& charge, float elapsedSeconds)
     }
     else
     {
-        // The exothermic charge burns: its face glows brighter as the fuse runs out.
-        sf::Color glow = Palette::ExothermicGlow;
+        // The hard breach charge burns: its face glows brighter as the fuse runs out.
+        sf::Color glow = Palette::HardBreachGlow;
         glow.a = static_cast<std::uint8_t>(120.f + 135.f * (1.f - fuseLeft));
         sf::Vector2f inset(0.05f, 0.05f);
         appendQuad(chargeShapes, center - halfSize + inset, center + halfSize - inset, glow);

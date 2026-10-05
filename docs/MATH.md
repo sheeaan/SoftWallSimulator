@@ -306,7 +306,7 @@ $$
 $$
 
 **Blast.** When the fuse reaches zero, the charge opens its own cell and its four neighbors, $(c, r \pm 1)$ and $(c \pm 1, r)$.
-It opens only cells it can break: a breach charge opens drywall and barricades, and an exothermic charge opens drywall and steel.
+It opens only cells it can break: a breach charge opens drywall and barricades, and a hard breach charge opens drywall and steel.
 Every opened tile is a new walkable cell, so one A\* re-plan after the whole blast covers all of them.
 
 **Spotting.** The mark time $S$ is reset whenever the attacker or the drone has line of sight to the defender, and decays otherwise:

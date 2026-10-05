@@ -518,7 +518,7 @@ namespace
         return everyShotBounces && stillSteel && !world.canPlayerSeeEnemy();
     }
 
-    bool exothermicChargeBurnsThroughAfterFuse()
+    bool hardBreachChargeBurnsThroughAfterFuse()
     {
         // The attacker stands right next to the reinforced wall.
         World world(parseLevel({
@@ -526,9 +526,9 @@ namespace
             "#.PR.E#",
             "#######",
         }));
-        ChargePlacement placement = world.placeCharge(ChargeType::EXOTHERMIC, sf::Vector2f(3.5f, 1.5f));
+        ChargePlacement placement = world.placeCharge(ChargeType::HARD_BREACH, sf::Vector2f(3.5f, 1.5f));
         bool placed = placement == ChargePlacement::PLACED
-                      && world.getChargesLeft(ChargeType::EXOTHERMIC) == World::ExothermicChargeCount - 1;
+                      && world.getChargesLeft(ChargeType::HARD_BREACH) == World::HardBreachChargeCount - 1;
 
         world.update(2.9f, NoInput);
         bool holdsDuringFuse = tileAt(world, GridCell{3, 1}) == TileType::REINFORCED_WALL;
@@ -705,7 +705,7 @@ namespace
         return guardsWhileHidden && huntsOnceSeen;
     }
 
-    bool endToEndDefenderReinforcesThermiteBreachesDefenderHunts()
+    bool endToEndDefenderReinforcesAttackerBreachesDefenderHunts()
     {
         World world(parseLevel({
             "###########",
@@ -723,9 +723,9 @@ namespace
 
         // Action: walk up to the steel and burn through it.
         runWorld(world, 0.35f, sf::Vector2f(1.f, 0.f));
-        bool chargePlaced = world.placeCharge(ChargeType::EXOTHERMIC, sf::Vector2f(5.5f, 2.5f)) == ChargePlacement::PLACED;
+        bool chargePlaced = world.placeCharge(ChargeType::HARD_BREACH, sf::Vector2f(5.5f, 2.5f)) == ChargePlacement::PLACED;
         bool guardingBehindSteel = world.getDefenderState() == DefenderState::GUARDING;
-        runWorld(world, World::ExothermicFuseSeconds + 0.05f, NoInput);
+        runWorld(world, World::HardBreachFuseSeconds + 0.05f, NoInput);
         bool breachOpen = tileAt(world, GridCell{5, 1}) == TileType::EMPTY && tileAt(world, GridCell{5, 2}) == TileType::EMPTY
                           && tileAt(world, GridCell{5, 3}) == TileType::EMPTY;
 
@@ -798,8 +798,8 @@ int main()
             endToEndRouteCostsAddUpStepByStep);
     runTest("Reinforcing turns drywall into steel that blocks walking and vision", reinforcingTurnsDrywallIntoSteel);
     runTest("Bullets cannot open a reinforced wall", bulletsCannotOpenReinforcedWall);
-    runTest("An exothermic charge burns through a reinforced wall after its 3-second fuse",
-            exothermicChargeBurnsThroughAfterFuse);
+    runTest("A hard breach charge burns through a reinforced wall after its 3-second fuse",
+            hardBreachChargeBurnsThroughAfterFuse);
     runTest("A breach charge opens a soft wall and its soft neighbors, but not steel",
             breachChargeOpensSoftWallAndSoftNeighbors);
     runTest("A barricade blocks the doorway and breaks in one shot", barricadeBlocksDoorwayAndBreaksInOneShot);
@@ -811,8 +811,8 @@ int main()
     runTest("When the action phase runs out, the defenders win", runningOutOfTimeMeansDefendersWin);
     runTest("When the defender reaches the attacker, the defenders win", defenderReachingAttackerWinsRound);
     runTest("The defender guards the site until it spots the attacker, then hunts", defenderGuardsUntilItSpotsAttacker);
-    runTest("End to end: the defender reinforces, Thermite burns through, and the defender hunts through the breach",
-            endToEndDefenderReinforcesThermiteBreachesDefenderHunts);
+    runTest("End to end: the defender reinforces, the attacker hard-breaches, and the defender hunts through the breach",
+            endToEndDefenderReinforcesAttackerBreachesDefenderHunts);
     runTest("End to end: the attacker breaks a barricade, holds the site, and wins",
             endToEndAttackerBreaksBarricadeAndPlants);
 
