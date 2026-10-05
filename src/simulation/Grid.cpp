@@ -113,6 +113,7 @@ void Grid::setTile(GridCell cell, TileType type)
         tile.health = 0;
         tile.intactPanels = 0;
     }
+    revision += 1;
 }
 
 bool Grid::isWalkable(GridCell cell) const
@@ -134,6 +135,16 @@ bool Grid::blocksVision(GridCell cell) const
     return getTile(cell).type != TileType::EMPTY;
 }
 
+bool Grid::isDronePassable(GridCell cell) const
+{
+    if (!contains(cell))
+    {
+        return false;
+    }
+    TileType type = getTile(cell).type;
+    return type == TileType::EMPTY || type == TileType::BARRICADE;
+}
+
 DamageResult Grid::damageTile(GridCell cell, std::uint16_t panelsHit)
 {
     if (!contains(cell))
@@ -142,6 +153,12 @@ DamageResult Grid::damageTile(GridCell cell, std::uint16_t panelsHit)
     }
 
     Tile& tile = tiles[indexOf(cell)];
+    if (tile.type == TileType::BARRICADE)
+    {
+        tile.type = TileType::EMPTY;
+        revision += 1;
+        return DamageResult::DESTROYED;
+    }
     if (tile.type != TileType::SOFT_WALL)
     {
         return DamageResult::NO_EFFECT;
@@ -150,6 +167,7 @@ DamageResult Grid::damageTile(GridCell cell, std::uint16_t panelsHit)
     // Health and panels are small integers. The arithmetic happens in int, so results are cast back explicitly.
     tile.health = static_cast<std::uint8_t>(tile.health - 1);
     tile.intactPanels = static_cast<std::uint16_t>(tile.intactPanels & ~panelsHit);
+    revision += 1;
     if (tile.health == 0)
     {
         tile.type = TileType::EMPTY;
@@ -157,6 +175,52 @@ DamageResult Grid::damageTile(GridCell cell, std::uint16_t panelsHit)
         return DamageResult::DESTROYED;
     }
     return DamageResult::DAMAGED;
+}
+
+bool Grid::reinforceTile(GridCell cell)
+{
+    if (!contains(cell))
+    {
+        return false;
+    }
+    Tile& tile = tiles[indexOf(cell)];
+    if (tile.type != TileType::SOFT_WALL)
+    {
+        return false;
+    }
+
+    // The steel plate covers any bullet holes, so the wall blocks vision completely again.
+    tile.type = TileType::REINFORCED_WALL;
+    tile.health = 0;
+    tile.intactPanels = 0;
+    revision += 1;
+    return true;
+}
+
+bool Grid::destroyTile(GridCell cell)
+{
+    if (!contains(cell))
+    {
+        return false;
+    }
+    Tile& tile = tiles[indexOf(cell)];
+    bool breakable = tile.type == TileType::SOFT_WALL || tile.type == TileType::REINFORCED_WALL
+                     || tile.type == TileType::BARRICADE;
+    if (!breakable)
+    {
+        return false;
+    }
+
+    tile.type = TileType::EMPTY;
+    tile.health = 0;
+    tile.intactPanels = 0;
+    revision += 1;
+    return true;
+}
+
+unsigned int Grid::getRevision() const
+{
+    return revision;
 }
 
 std::uint16_t panelBit(int panelColumn, int panelRow)

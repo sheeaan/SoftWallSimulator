@@ -23,6 +23,9 @@ Level parseLevel(const std::vector<std::string>& rows)
     GridCell enemySpawn;
     int playerSpawnCount = 0;
     int enemySpawnCount = 0;
+    std::vector<GridCell> plannedReinforcements;
+    std::vector<GridCell> bombSite;
+    std::vector<GridCell> guardPoints;
 
     for (int row = 0; row < rowCount; ++row)
     {
@@ -45,7 +48,24 @@ Level parseLevel(const std::vector<std::string>& rows)
             case '+':
                 grid.setTile(cell, TileType::SOFT_WALL);
                 break;
+            case 'r':
+                grid.setTile(cell, TileType::SOFT_WALL);
+                plannedReinforcements.push_back(cell);
+                break;
+            case 'R':
+                grid.setTile(cell, TileType::REINFORCED_WALL);
+                break;
+            case '=':
+                grid.setTile(cell, TileType::BARRICADE);
+                break;
             case '.':
+                break;
+            case '*':
+                bombSite.push_back(cell);
+                break;
+            case 'G':
+                bombSite.push_back(cell);
+                guardPoints.push_back(cell);
                 break;
             case 'P':
                 playerSpawn = cell;
@@ -73,14 +93,16 @@ Level parseLevel(const std::vector<std::string>& rows)
                                + std::to_string(enemySpawnCount) + ".");
     }
 
-    return Level{std::move(grid), playerSpawn, enemySpawn};
+    return Level{std::move(grid), playerSpawn, enemySpawn, std::move(plannedReinforcements), std::move(bombSite),
+                 std::move(guardPoints)};
 }
 
 const std::vector<std::string>& getDefaultLevelRows()
 {
-    // Three wings: west (player), a central hall, and east (enemy).
-    // The open route between P and E winds through the doors in the corners.
-    // The soft walls in the dividers are shortcuts the player can break open.
+    // Three wings: west (the attacker's spawn), a central hall, and east (the defender's).
+    // The bomb site sits in the middle of the east wing. During the preparation phase the defender
+    // reinforces the walls marked 'r' around it. Barricades close the east doorways, so the defender's
+    // only way out is the gap at the bottom of the site room, into the south-east room.
     static const std::vector<std::string> rows = {
         "################################################",
         "#...............................#..............#",
@@ -90,24 +112,24 @@ const std::vector<std::string>& getDefaultLevelRows()
         "#....+++.......#...##......##...+......+++.....#",
         "#..............#................#..............#",
         "#..............#.......++.......#..............#",
-        "###++#######..##.......++.......##..######++####",
+        "###++#######..##.......++.......##==######rr####",
         "#..............#................#..............#",
         "#...#.....#....#...##......##...#....#.....#...#",
-        "#..............#...##......##...#..............#",
-        "#..............+................+..............#",
-        "#....P.........+................+..........E...#",
-        "#..............+................+..............#",
-        "#..............#...##......##...#..............#",
+        "#..............#...##......##...#.....**G**....#",
+        "#..............+................r.....*****....#",
+        "#....P.........+................r.....*****E...#",
+        "#..............+................r.....*****....#",
+        "#..............#...##......##...#.....**G**....#",
         "#...#.....#....#...##......##...#....#.....#...#",
         "#..............#................#..............#",
-        "##..######++####.......++.......####++######..##",
+        "##..######++####.......++.......####rr######..##",
         "#..............#.......++.......#..............#",
         "#..+++....##...#................#...##....+++..#",
         "#..+......##...+...##......##...#...##......+..#",
         "#..............+...##......##...#..............#",
         "#......##......#................#......##......#",
-        "#......##......#.......................##......#",
-        "#..............#...............................#",
+        "#......##......#................=......##......#",
+        "#..............#................=..............#",
         "################################################",
     };
     return rows;

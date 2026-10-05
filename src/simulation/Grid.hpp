@@ -9,8 +9,10 @@
 enum class TileType : std::uint8_t
 {
     EMPTY,
-    SOFT_WALL,
-    HARD_WALL
+    SOFT_WALL,       // Drywall. Bullets drill slots in it, and the third hit breaks it.
+    HARD_WALL,       // Concrete. Nothing breaks it.
+    REINFORCED_WALL, // Drywall the defender covered in steel. Only an exothermic charge breaks it.
+    BARRICADE        // Wooden planks across a doorway. One hit breaks them, and a drone rolls under them.
 };
 
 // Four bytes per tile, so the whole map is one small, contiguous block of memory.
@@ -32,9 +34,9 @@ bool operator!=(GridCell left, GridCell right);
 
 enum class DamageResult
 {
-    NO_EFFECT, // The cell was floor, a HARD_WALL, or outside the grid.
+    NO_EFFECT, // The cell was floor, a HARD_WALL, a REINFORCED_WALL, or outside the grid.
     DAMAGED,   // A SOFT_WALL lost health but still stands.
-    DESTROYED  // A SOFT_WALL reached zero health and became EMPTY.
+    DESTROYED  // A SOFT_WALL reached zero health, or a BARRICADE broke, and the cell became EMPTY.
 };
 
 // World positions are measured in tiles: cell (3, 2) covers x from 3 to 4 and y from 2 to 3.
@@ -65,14 +67,26 @@ public:
 
     bool isWalkable(GridCell cell) const;
     bool blocksVision(GridCell cell) const;
+    bool isDronePassable(GridCell cell) const; // Floor, or a barricade the drone rolls under.
 
     // Takes one health from a SOFT_WALL and punches out the panels the shot went through.
+    // A BARRICADE breaks on the first hit.
     DamageResult damageTile(GridCell cell, std::uint16_t panelsHit);
+
+    // Covers a SOFT_WALL in steel. Returns false when the cell is not a SOFT_WALL.
+    bool reinforceTile(GridCell cell);
+
+    // Blows a breakable tile (SOFT_WALL, REINFORCED_WALL, or BARRICADE) open. Returns false for anything else.
+    bool destroyTile(GridCell cell);
+
+    // Goes up by one every time any tile changes, so renderers know when to rebuild.
+    unsigned int getRevision() const;
 
 private:
     int columnCount;
     int rowCount;
     std::vector<Tile> tiles;
+    unsigned int revision = 0;
 };
 
 // Panels are numbered row by row, like tiles: panel (column, row) is bit row * 4 + column.
