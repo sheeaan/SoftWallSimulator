@@ -1,7 +1,7 @@
 #include "presentation/StatisticsPanel.hpp"
 
+#include "presentation/Fonts.hpp"
 #include "presentation/Palette.hpp"
-#include "simulation/SimulatorErrors.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -14,22 +14,10 @@ namespace
     constexpr float RefreshSeconds = 0.25f;
     constexpr int LabelWidth = 14; // Characters. The font is monospaced, so columns line up.
     constexpr int ValueWidth = 12;
-
-    // The font ships in assets/fonts. CMake passes the absolute path of the assets folder.
-    sf::Font loadFont()
-    {
-        std::string path = std::string(SOFT_WALL_ASSET_DIRECTORY) + "/fonts/JetBrainsMono-Regular.ttf";
-        sf::Font font;
-        if (!font.openFromFile(path))
-        {
-            throw ResourceError("Could not load the font " + path + ".");
-        }
-        return font;
-    }
 }
 
 StatisticsPanel::StatisticsPanel(sf::Vector2u windowSize)
-    : font(loadFont())
+    : font(loadFont("JetBrainsMono-Regular.ttf"))
     , titleText(font, "SOFT WALL SIMULATOR", windowSize.y / 46)
     , bodyText(font, "", windowSize.y / 58)
     , padding(static_cast<float>(windowSize.y) / 60.f)
@@ -38,7 +26,7 @@ StatisticsPanel::StatisticsPanel(sf::Vector2u windowSize)
     titleText.setLetterSpacing(1.5f);
     bodyText.setFillColor(Palette::PanelText);
     background.setFillColor(Palette::PanelBackground);
-    accentBar.setFillColor(Palette::PanelTitle);
+    accentBar.setFillColor(Palette::AttackerBlue);
 }
 
 void StatisticsPanel::update(float seconds, const World& world)
@@ -83,8 +71,7 @@ void StatisticsPanel::update(float seconds, const World& world)
     lines << std::setw(LabelWidth) << "Enemy route" << routeText << '\n';
     lines << std::setw(LabelWidth) << "Re-plans" << statistics.pathRecalculations << '\n';
     lines << std::setw(LabelWidth) << "Walls broken" << statistics.wallsDestroyed << '\n';
-    lines << std::setw(LabelWidth) << "Enemy" << enemyText << "\n\n";
-    lines << "WASD move   Click break wall   Tab algorithm view";
+    lines << std::setw(LabelWidth) << "Enemy" << enemyText;
     bodyText.setString(lines.str());
 
     // Lay the panel out around the text: the title, the body under it, padding all round.

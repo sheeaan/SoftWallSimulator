@@ -29,7 +29,7 @@ namespace
     constexpr float ShakeDecayPerSecond = 1.6f;
     constexpr float DestroyShake = 0.55f;
     constexpr float DamageShake = 0.22f;
-    constexpr float HardWallShake = 0.08f;
+    constexpr float SteelHitShake = 0.08f;
 
     // About 80% of the desktop at 16:9, so the window looks the same size on any display.
     sf::Vector2u chooseWindowSize()
@@ -52,8 +52,10 @@ Game::Game()
     , world(parseLevel(getDefaultLevelRows()))
     , tileMapRenderer(world.getGrid())
     , lightingRenderer(window.getSize())
+    , droneCameraFilter(window.getSize())
     , statisticsPanel(window.getSize())
-    , debrisParticles(600)
+    , headsUpDisplay(window.getSize())
+    , debrisParticles(800)
     , sparkParticles(800)
     , playerShape(Player::HalfSize, 40)
     , playerGlow(lightingRenderer.getGlowTexture())
@@ -134,36 +136,38 @@ void Game::handleLeftClick(sf::Vector2i pixelPosition)
     GridCell clickedCell = cellContaining(worldPosition);
     sf::Vector2f clickedCenter = cellCenter(clickedCell);
 
-    bool clickedHardWall = false;
+    bool clickedSteel = false;
     if (world.getGrid().contains(clickedCell))
     {
-        clickedHardWall = world.getGrid().getTile(clickedCell).type == TileType::HARD_WALL;
+        clickedSteel = world.getGrid().getTile(clickedCell).type == TileType::HARD_WALL;
     }
 
     DamageResult result = world.damageTileAt(worldPosition);
     if (result == DamageResult::DESTROYED)
     {
+        // The whole board comes down: a cloud of plaster dust and a spray of splintered studs.
         tileMapRenderer.rebuildWalls(world.getGrid());
         tileMapRenderer.flashTile(clickedCell);
-        debrisParticles.spawnBurst(clickedCenter, 32, Palette::Debris, 5.f, 0.9f, 0.2f);
-        sparkParticles.spawnBurst(clickedCenter, 40, Palette::Spark, 10.f, 0.5f, 0.1f);
+        debrisParticles.spawnBurst(clickedCenter, 40, Palette::PlasterDust, 3.5f, 1.2f, 0.26f);
+        debrisParticles.spawnBurst(clickedCenter, 30, Palette::Splinter, 8.f, 0.7f, 0.1f);
         algorithmOverlay.flashPath();
         shakeTrauma = std::min(1.f, shakeTrauma + DestroyShake);
     }
     else if (result == DamageResult::DAMAGED)
     {
+        // A bullet punches through drywall: a puff of dust and a few splinters where it hit.
         tileMapRenderer.rebuildWalls(world.getGrid());
         tileMapRenderer.flashTile(clickedCell);
-        debrisParticles.spawnBurst(clickedCenter, 10, Palette::Debris, 3.5f, 0.6f, 0.15f);
-        sparkParticles.spawnBurst(clickedCenter, 14, Palette::Spark, 8.f, 0.35f, 0.09f);
+        debrisParticles.spawnBurst(worldPosition, 14, Palette::PlasterDust, 2.5f, 0.8f, 0.16f);
+        debrisParticles.spawnBurst(worldPosition, 10, Palette::Splinter, 6.f, 0.5f, 0.08f);
         shakeTrauma = std::min(1.f, shakeTrauma + DamageShake);
     }
-    else if (clickedHardWall)
+    else if (clickedSteel)
     {
-        // Hard walls shrug the hit off: a flash and a few cold sparks, but no damage.
+        // Reinforced steel takes no damage. The bullet sparks off it.
         tileMapRenderer.flashTile(clickedCell);
-        sparkParticles.spawnBurst(clickedCenter, 12, Palette::HardWallSpark, 7.f, 0.3f, 0.08f);
-        shakeTrauma = std::min(1.f, shakeTrauma + HardWallShake);
+        sparkParticles.spawnBurst(worldPosition, 16, Palette::Spark, 9.f, 0.3f, 0.08f);
+        shakeTrauma = std::min(1.f, shakeTrauma + SteelHitShake);
     }
 }
 
@@ -177,10 +181,13 @@ void Game::update(float seconds)
     debrisParticles.update(seconds);
     sparkParticles.update(seconds);
 
+    bool enemySpotted = world.canPlayerSeeEnemy();
+    headsUpDisplay.setEnemySpotted(enemySpotted);
+
     // Fade the enemy in or out instead of popping at the edge of a shadow.
     // The overlay shows it through walls.
     float targetVisibility = 0.f;
-    if (world.canPlayerSeeEnemy() || algorithmOverlay.isVisible())
+    if (enemySpotted || algorithmOverlay.isVisible())
     {
         targetVisibility = 1.f;
     }
@@ -205,20 +212,22 @@ void Game::update(float seconds)
 
 void Game::render()
 {
-    window.clear(Palette::Background);
-    window.setView(cameraView);
+    // The world draws into the drone camera's scene texture, not straight to the window.
+    sf::RenderTexture& scene = droneCameraFilter.getSceneTexture();
+    scene.clear(Palette::Background);
+    scene.setView(cameraView);
 
     // Everything drawn before the light map is darkened where the rays cannot reach.
-    tileMapRenderer.drawFloor(window);
-    debrisParticles.draw(window, sf::BlendAlpha);
-    tileMapRenderer.drawWalls(window);
-    lightingRenderer.drawLightMap(window, cameraView, world.getGrid(), world.getPlayer().getPosition(),
+    tileMapRenderer.drawFloor(scene);
+    debrisParticles.draw(scene, sf::BlendAlpha);
+    tileMapRenderer.drawWalls(scene);
+    lightingRenderer.drawLightMap(scene, cameraView, world.getGrid(), world.getPlayer().getPosition(),
                                   world.getVisibility());
 
     // Everything drawn after it stays visible in the dark.
-    tileMapRenderer.drawWallEdges(window);
-    tileMapRenderer.drawFlashes(window);
-    algorithmOverlay.draw(window, world);
+    tileMapRenderer.drawWallEdges(scene);
+    tileMapRenderer.drawFlashes(scene);
+    algorithmOverlay.draw(scene, world);
 
     // The enemy's glow pulses, and both glow and body fade with line of sight.
     float pulse = 0.75f + 0.25f * std::sin(elapsedSeconds * EnemyPulseSpeed);
@@ -226,23 +235,27 @@ void Game::render()
     enemyGlowColor.a = static_cast<std::uint8_t>(enemyGlowColor.a * pulse * enemyVisibility);
     enemyGlow.setColor(enemyGlowColor);
     enemyGlow.setPosition(world.getEnemy().getPosition());
-    window.draw(enemyGlow, sf::BlendAdd);
+    scene.draw(enemyGlow, sf::BlendAdd);
 
     sf::Color enemyBodyColor = Palette::EnemyBody;
     enemyBodyColor.a = static_cast<std::uint8_t>(255.f * enemyVisibility);
     enemyShape.setFillColor(enemyBodyColor);
     enemyShape.setPosition(world.getEnemy().getPosition());
     enemyShape.setRotation(sf::degrees(elapsedSeconds * EnemySpinDegreesPerSecond));
-    window.draw(enemyShape);
+    scene.draw(enemyShape);
 
     playerGlow.setPosition(world.getPlayer().getPosition());
-    window.draw(playerGlow, sf::BlendAdd);
+    scene.draw(playerGlow, sf::BlendAdd);
     playerShape.setPosition(world.getPlayer().getPosition());
-    window.draw(playerShape);
+    scene.draw(playerShape);
 
-    sparkParticles.draw(window, sf::BlendAdd);
+    sparkParticles.draw(scene, sf::BlendAdd);
+
+    // The camera filter copies the world to the window; the heads-up display goes on top, unfiltered.
+    window.clear(Palette::Background);
+    droneCameraFilter.drawToWindow(window, elapsedSeconds);
     statisticsPanel.draw(window);
-
+    headsUpDisplay.draw(window);
     window.display();
 }
 

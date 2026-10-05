@@ -34,7 +34,9 @@ target_link_libraries(SoftWallSimulation PUBLIC SFML::System)
 add_executable(SoftWallSimulator
     src/main.cpp
     src/presentation/AlgorithmOverlay.cpp
+    src/presentation/DroneCameraFilter.cpp
     src/presentation/Game.cpp
+    src/presentation/HeadsUpDisplay.cpp
     src/presentation/LightingRenderer.cpp
     src/presentation/ParticleSystem.cpp
     src/presentation/StatisticsPanel.cpp

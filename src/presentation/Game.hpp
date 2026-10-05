@@ -1,6 +1,8 @@
 #pragma once
 
 #include "presentation/AlgorithmOverlay.hpp"
+#include "presentation/DroneCameraFilter.hpp"
+#include "presentation/HeadsUpDisplay.hpp"
 #include "presentation/LightingRenderer.hpp"
 #include "presentation/ParticleSystem.hpp"
 #include "presentation/StatisticsPanel.hpp"
@@ -35,8 +37,10 @@ private:
     World world;
     TileMapRenderer tileMapRenderer;
     LightingRenderer lightingRenderer;
+    DroneCameraFilter droneCameraFilter;
     AlgorithmOverlay algorithmOverlay;
     StatisticsPanel statisticsPanel;
+    HeadsUpDisplay headsUpDisplay;
     ParticleSystem debrisParticles;
     ParticleSystem sparkParticles;
     sf::CircleShape playerShape;

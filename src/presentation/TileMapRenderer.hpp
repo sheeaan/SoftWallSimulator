@@ -5,10 +5,10 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 
-#include <cstdint>
 #include <vector>
 
 // Draws the grid from vertex arrays, so each layer is one draw call.
+// Soft walls are drywall over wooden studs; hard walls are reinforced steel plates.
 // Floor and wall bodies are drawn before the light map, so darkness covers them.
 // Wall edges are drawn after it, so the outline of the map stays readable in the dark.
 class TileMapRenderer
@@ -35,12 +35,11 @@ private:
         float secondsLeft = 0.f;
     };
 
-    void appendHardWall(const Grid& grid, GridCell cell);
-    void appendSoftWall(GridCell cell, std::uint8_t health);
+    void appendSteelWall(const Grid& grid, GridCell cell);
+    void appendDrywall(const Grid& grid, GridCell cell, const Tile& tile);
 
     sf::VertexArray floorVertices;
     sf::VertexArray wallVertices;
-    sf::VertexArray crackVertices;
     sf::VertexArray wallEdgeVertices;
     sf::VertexArray flashVertices;
     std::vector<TileFlash> flashes;

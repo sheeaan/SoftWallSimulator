@@ -7,7 +7,7 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Graphics/Text.hpp>
 
-// A panel in the top-left corner with live numbers from the simulation and the controls.
+// A panel in the top-left corner with live numbers from the simulation.
 // The text refreshes four times a second, so the numbers stay readable.
 class StatisticsPanel
 {

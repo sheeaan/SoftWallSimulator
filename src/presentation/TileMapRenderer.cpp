@@ -5,45 +5,25 @@
 
 #include <SFML/Graphics/RenderStates.hpp>
 
+#include <algorithm>
+#include <cstdint>
+
 namespace
 {
-    constexpr float FloorSeamWidth = 0.03f;  // Gap between floor tiles that shows as faint grid lines.
-    constexpr float HardWallEdgeWidth = 0.1f; // Bright rim on hard-wall sides that face open floor.
-    constexpr float SoftWallInset = 0.06f;   // Gap around each soft wall, so each one reads as a separate block.
-    constexpr float SoftWallEdgeWidth = 0.1f;
+    constexpr float FloorSeamWidth = 0.03f;    // Gap between floor tiles that shows as faint grid lines.
+    constexpr float EdgeWidth = 0.1f;          // Outline on wall sides that face open floor.
+    constexpr float DrywallSeamWidth = 0.015f; // Hairline joint between neighboring drywall boards.
+    constexpr float SplinterWidth = 0.05f;     // Torn board and exposed stud around a bullet hole.
+    constexpr float SteelFrameWidth = 0.1f;
+    constexpr float RivetSize = 0.07f;
+    constexpr float RivetInset = 0.17f;
     constexpr float FlashSeconds = 0.12f;
-
-    struct CrackSegment
-    {
-        sf::Vector2f from; // Tile-local coordinates, 0 to 1.
-        sf::Vector2f to;
-    };
-
-    // The first crack appears after one hit. The second joins it after two.
-    constexpr CrackSegment FirstCrack[] = {
-        {sf::Vector2f(0.22f, 0.12f), sf::Vector2f(0.40f, 0.38f)},
-        {sf::Vector2f(0.40f, 0.38f), sf::Vector2f(0.34f, 0.58f)},
-        {sf::Vector2f(0.34f, 0.58f), sf::Vector2f(0.52f, 0.82f)},
-    };
-    constexpr CrackSegment SecondCrack[] = {
-        {sf::Vector2f(0.86f, 0.20f), sf::Vector2f(0.63f, 0.42f)},
-        {sf::Vector2f(0.63f, 0.42f), sf::Vector2f(0.70f, 0.62f)},
-        {sf::Vector2f(0.70f, 0.62f), sf::Vector2f(0.56f, 0.88f)},
-        {sf::Vector2f(0.40f, 0.38f), sf::Vector2f(0.63f, 0.42f)},
-    };
-
-    sf::Color darken(sf::Color color, float brightness)
-    {
-        return sf::Color(static_cast<std::uint8_t>(color.r * brightness),
-                         static_cast<std::uint8_t>(color.g * brightness),
-                         static_cast<std::uint8_t>(color.b * brightness));
-    }
+    constexpr float PanelSize = 1.f / static_cast<float>(Grid::PanelsPerSide);
 }
 
 TileMapRenderer::TileMapRenderer(const Grid& grid)
     : floorVertices(sf::PrimitiveType::Triangles)
     , wallVertices(sf::PrimitiveType::Triangles)
-    , crackVertices(sf::PrimitiveType::Lines)
     , wallEdgeVertices(sf::PrimitiveType::Triangles)
     , flashVertices(sf::PrimitiveType::Triangles)
 {
@@ -75,7 +55,6 @@ TileMapRenderer::TileMapRenderer(const Grid& grid)
 void TileMapRenderer::rebuildWalls(const Grid& grid)
 {
     wallVertices.clear();
-    crackVertices.clear();
     wallEdgeVertices.clear();
     for (int row = 0; row < grid.getRowCount(); ++row)
     {
@@ -85,11 +64,11 @@ void TileMapRenderer::rebuildWalls(const Grid& grid)
             const Tile& tile = grid.getTile(cell);
             if (tile.type == TileType::HARD_WALL)
             {
-                appendHardWall(grid, cell);
+                appendSteelWall(grid, cell);
             }
             else if (tile.type == TileType::SOFT_WALL)
             {
-                appendSoftWall(cell, tile.health);
+                appendDrywall(grid, cell, tile);
             }
         }
     }
@@ -128,7 +107,6 @@ void TileMapRenderer::drawFloor(sf::RenderTarget& target) const
 void TileMapRenderer::drawWalls(sf::RenderTarget& target) const
 {
     target.draw(wallVertices);
-    target.draw(crackVertices);
 }
 
 void TileMapRenderer::drawWallEdges(sf::RenderTarget& target) const
@@ -149,75 +127,146 @@ void TileMapRenderer::drawFlashes(sf::RenderTarget& target)
     target.draw(flashVertices, sf::BlendAdd);
 }
 
-void TileMapRenderer::appendHardWall(const Grid& grid, GridCell cell)
+void TileMapRenderer::appendSteelWall(const Grid& grid, GridCell cell)
 {
     float left = static_cast<float>(cell.column);
     float top = static_cast<float>(cell.row);
     float right = left + 1.f;
     float bottom = top + 1.f;
 
-    appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), Palette::HardWall);
+    // A reinforced steel plate: a dark frame, a raised inner plate, and a rivet in each corner.
+    appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), Palette::SteelPlate);
+    appendQuad(wallVertices,
+               sf::Vector2f(left + SteelFrameWidth, top + SteelFrameWidth),
+               sf::Vector2f(right - SteelFrameWidth, bottom - SteelFrameWidth),
+               Palette::SteelInnerPlate);
 
-    // A rim on each side that faces walkable floor outlines the walls like a blueprint.
+    const sf::Vector2f rivetCenters[4] = {
+        sf::Vector2f(left + RivetInset, top + RivetInset),
+        sf::Vector2f(right - RivetInset, top + RivetInset),
+        sf::Vector2f(left + RivetInset, bottom - RivetInset),
+        sf::Vector2f(right - RivetInset, bottom - RivetInset),
+    };
+    sf::Vector2f halfRivet(RivetSize / 2.f, RivetSize / 2.f);
+    for (const sf::Vector2f& rivetCenter : rivetCenters)
+    {
+        appendQuad(wallVertices, rivetCenter - halfRivet, rivetCenter + halfRivet, Palette::Rivet);
+    }
+
+    // A rim on each side that faces walkable floor outlines the walls.
     if (grid.isWalkable(GridCell{cell.column, cell.row - 1}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + HardWallEdgeWidth),
-                   Palette::HardWallEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + EdgeWidth), Palette::SteelEdge);
     }
     if (grid.isWalkable(GridCell{cell.column, cell.row + 1}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - HardWallEdgeWidth), sf::Vector2f(right, bottom),
-                   Palette::HardWallEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - EdgeWidth), sf::Vector2f(right, bottom), Palette::SteelEdge);
     }
     if (grid.isWalkable(GridCell{cell.column - 1, cell.row}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + HardWallEdgeWidth, bottom),
-                   Palette::HardWallEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + EdgeWidth, bottom), Palette::SteelEdge);
     }
     if (grid.isWalkable(GridCell{cell.column + 1, cell.row}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(right - HardWallEdgeWidth, top), sf::Vector2f(right, bottom),
-                   Palette::HardWallEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(right - EdgeWidth, top), sf::Vector2f(right, bottom), Palette::SteelEdge);
     }
 }
 
-void TileMapRenderer::appendSoftWall(GridCell cell, std::uint8_t health)
+void TileMapRenderer::appendDrywall(const Grid& grid, GridCell cell, const Tile& tile)
 {
-    float left = static_cast<float>(cell.column) + SoftWallInset;
-    float top = static_cast<float>(cell.row) + SoftWallInset;
-    float right = static_cast<float>(cell.column) + 1.f - SoftWallInset;
-    float bottom = static_cast<float>(cell.row) + 1.f - SoftWallInset;
+    float left = static_cast<float>(cell.column);
+    float top = static_cast<float>(cell.row);
 
-    // The body darkens with each hit: full color at 3 health, 85% at 2, 70% at 1.
-    float brightness = 0.55f + 0.15f * static_cast<float>(health);
-    appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), darken(Palette::SoftWall, brightness));
+    // The board is inset by a hairline, so neighboring boards show a joint between them.
+    float boardLeft = left + DrywallSeamWidth;
+    float boardTop = top + DrywallSeamWidth;
+    float boardRight = left + 1.f - DrywallSeamWidth;
+    float boardBottom = top + 1.f - DrywallSeamWidth;
 
-    // A bright border, like a crate seen from above.
-    appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + SoftWallEdgeWidth),
-               Palette::SoftWallEdge);
-    appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - SoftWallEdgeWidth), sf::Vector2f(right, bottom),
-               Palette::SoftWallEdge);
-    appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + SoftWallEdgeWidth, bottom),
-               Palette::SoftWallEdge);
-    appendQuad(wallEdgeVertices, sf::Vector2f(right - SoftWallEdgeWidth, top), sf::Vector2f(right, bottom),
-               Palette::SoftWallEdge);
-
-    // Cracks spread as health drops.
-    sf::Vector2f tileOrigin(static_cast<float>(cell.column), static_cast<float>(cell.row));
-    if (health < Grid::SoftWallMaxHealth)
+    // Intact panels are plaster. Punched-out panels are left empty, so the floor shows through the hole.
+    for (int panelRow = 0; panelRow < Grid::PanelsPerSide; ++panelRow)
     {
-        for (const CrackSegment& segment : FirstCrack)
+        for (int panelColumn = 0; panelColumn < Grid::PanelsPerSide; ++panelColumn)
         {
-            crackVertices.append(sf::Vertex{tileOrigin + segment.from, Palette::Crack});
-            crackVertices.append(sf::Vertex{tileOrigin + segment.to, Palette::Crack});
+            if (!isPanelIntact(tile, panelColumn, panelRow))
+            {
+                continue;
+            }
+            float panelLeft = std::max(left + static_cast<float>(panelColumn) * PanelSize, boardLeft);
+            float panelTop = std::max(top + static_cast<float>(panelRow) * PanelSize, boardTop);
+            float panelRight = std::min(left + static_cast<float>(panelColumn + 1) * PanelSize, boardRight);
+            float panelBottom = std::min(top + static_cast<float>(panelRow + 1) * PanelSize, boardBottom);
+            appendQuad(wallVertices, sf::Vector2f(panelLeft, panelTop), sf::Vector2f(panelRight, panelBottom),
+                       Palette::Plaster);
         }
     }
-    if (health < Grid::SoftWallMaxHealth - 1)
+
+    // Around each hole, the torn board and the wooden stud behind it show along every intact neighbor.
+    for (int panelRow = 0; panelRow < Grid::PanelsPerSide; ++panelRow)
     {
-        for (const CrackSegment& segment : SecondCrack)
+        for (int panelColumn = 0; panelColumn < Grid::PanelsPerSide; ++panelColumn)
         {
-            crackVertices.append(sf::Vertex{tileOrigin + segment.from, Palette::Crack});
-            crackVertices.append(sf::Vertex{tileOrigin + segment.to, Palette::Crack});
+            if (isPanelIntact(tile, panelColumn, panelRow))
+            {
+                continue;
+            }
+            float holeLeft = left + static_cast<float>(panelColumn) * PanelSize;
+            float holeTop = top + static_cast<float>(panelRow) * PanelSize;
+            float holeRight = holeLeft + PanelSize;
+            float holeBottom = holeTop + PanelSize;
+
+            if (panelRow > 0 && isPanelIntact(tile, panelColumn, panelRow - 1))
+            {
+                appendQuad(wallVertices, sf::Vector2f(holeLeft, holeTop - SplinterWidth), sf::Vector2f(holeRight, holeTop),
+                           Palette::Splinter);
+            }
+            if (panelRow < Grid::PanelsPerSide - 1 && isPanelIntact(tile, panelColumn, panelRow + 1))
+            {
+                appendQuad(wallVertices, sf::Vector2f(holeLeft, holeBottom), sf::Vector2f(holeRight, holeBottom + SplinterWidth),
+                           Palette::Splinter);
+            }
+            if (panelColumn > 0 && isPanelIntact(tile, panelColumn - 1, panelRow))
+            {
+                appendQuad(wallVertices, sf::Vector2f(holeLeft - SplinterWidth, holeTop), sf::Vector2f(holeLeft, holeBottom),
+                           Palette::Splinter);
+            }
+            if (panelColumn < Grid::PanelsPerSide - 1 && isPanelIntact(tile, panelColumn + 1, panelRow))
+            {
+                appendQuad(wallVertices, sf::Vector2f(holeRight, holeTop), sf::Vector2f(holeRight + SplinterWidth, holeBottom),
+                           Palette::Splinter);
+            }
+        }
+    }
+
+    // Outline the sides that face open floor one panel at a time, so a slot that exits the wall leaves a gap.
+    bool floorAbove = grid.isWalkable(GridCell{cell.column, cell.row - 1});
+    bool floorBelow = grid.isWalkable(GridCell{cell.column, cell.row + 1});
+    bool floorLeft = grid.isWalkable(GridCell{cell.column - 1, cell.row});
+    bool floorRight = grid.isWalkable(GridCell{cell.column + 1, cell.row});
+    int lastPanel = Grid::PanelsPerSide - 1;
+    for (int panel = 0; panel < Grid::PanelsPerSide; ++panel)
+    {
+        float spanStart = static_cast<float>(panel) * PanelSize;
+        float spanEnd = spanStart + PanelSize;
+        if (floorAbove && isPanelIntact(tile, panel, 0))
+        {
+            appendQuad(wallEdgeVertices, sf::Vector2f(left + spanStart, top), sf::Vector2f(left + spanEnd, top + EdgeWidth),
+                       Palette::DrywallEdge);
+        }
+        if (floorBelow && isPanelIntact(tile, panel, lastPanel))
+        {
+            appendQuad(wallEdgeVertices, sf::Vector2f(left + spanStart, top + 1.f - EdgeWidth),
+                       sf::Vector2f(left + spanEnd, top + 1.f), Palette::DrywallEdge);
+        }
+        if (floorLeft && isPanelIntact(tile, 0, panel))
+        {
+            appendQuad(wallEdgeVertices, sf::Vector2f(left, top + spanStart), sf::Vector2f(left + EdgeWidth, top + spanEnd),
+                       Palette::DrywallEdge);
+        }
+        if (floorRight && isPanelIntact(tile, lastPanel, panel))
+        {
+            appendQuad(wallEdgeVertices, sf::Vector2f(left + 1.f - EdgeWidth, top + spanStart),
+                       sf::Vector2f(left + 1.f, top + spanEnd), Palette::DrywallEdge);
         }
     }
 }
