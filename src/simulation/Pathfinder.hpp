@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 // A* over the grid in 8 directions, never cutting a wall's corner.
@@ -15,12 +16,21 @@ public:
     static constexpr int StraightStepCost = 10;
     static constexpr int DiagonalStepCost = 14; // 10 times the square root of 2, rounded, so costs stay integers.
 
+    // Octile distance: the exact cost between two cells on an open grid. It never overestimates,
+    // so A* stays optimal. This is h.
+    static int estimateCost(GridCell from, GridCell to);
+
     // Returns the cells from start to goal, both included, along a cheapest path.
     // Returns an empty path when the goal cannot be reached.
     std::vector<GridCell> findPath(const Grid& grid, GridCell start, GridCell goal);
 
-    // The cell indices the last search expanded, in the order it expanded them.
-    const std::vector<std::size_t>& getExpandedCells() const;
+    // What the last search did, for the math view.
+    const std::vector<std::size_t>& getExpandedCells() const; // Cell indices, in expansion order.
+    GridCell getStart() const;
+    GridCell getGoal() const;
+    bool wasExpanded(std::size_t cellIndex) const;
+    int getCostFromStart(std::size_t cellIndex) const;                  // g. Only meaningful for expanded cells.
+    std::optional<std::size_t> getCameFrom(std::size_t cellIndex) const; // The parent. Empty for the start.
 
 private:
     enum class SearchState : std::uint8_t
@@ -44,9 +54,13 @@ private:
         bool operator()(const OpenEntry& left, const OpenEntry& right) const;
     };
 
+    void checkIndex(std::size_t cellIndex) const;
+
     std::vector<int> costFromStart;         // Per cell: the cheapest known cost from the start.
     std::vector<std::size_t> cameFrom;      // Per cell: the previous cell on that cheapest path.
     std::vector<SearchState> searchStates;  // Per cell.
     std::vector<OpenEntry> openHeap;        // A binary heap, kept with std::push_heap and std::pop_heap.
     std::vector<std::size_t> expandedCells; // In expansion order.
+    GridCell lastStart;
+    GridCell lastGoal;
 };

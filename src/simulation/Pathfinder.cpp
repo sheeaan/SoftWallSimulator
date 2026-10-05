@@ -1,8 +1,11 @@
 #include "simulation/Pathfinder.hpp"
 
+#include "simulation/SimulatorErrors.hpp"
+
 #include <algorithm>
 #include <cstdlib>
 #include <limits>
+#include <string>
 
 namespace
 {
@@ -13,16 +16,16 @@ namespace
         GridCell{1, 0}, GridCell{-1, 0}, GridCell{0, 1},  GridCell{0, -1},
         GridCell{1, 1}, GridCell{1, -1}, GridCell{-1, 1}, GridCell{-1, -1},
     };
+}
 
-    // Octile distance: the exact cost on an open grid. It never overestimates, so A* stays optimal.
-    int estimateCost(GridCell from, GridCell to)
-    {
-        int columnDistance = std::abs(from.column - to.column);
-        int rowDistance = std::abs(from.row - to.row);
-        int diagonalSteps = std::min(columnDistance, rowDistance);
-        int straightSteps = std::max(columnDistance, rowDistance) - diagonalSteps;
-        return diagonalSteps * Pathfinder::DiagonalStepCost + straightSteps * Pathfinder::StraightStepCost;
-    }
+int Pathfinder::estimateCost(GridCell from, GridCell to)
+{
+    // Take as many diagonal steps as the shorter axis allows, then go straight for the rest.
+    int columnDistance = std::abs(from.column - to.column);
+    int rowDistance = std::abs(from.row - to.row);
+    int diagonalSteps = std::min(columnDistance, rowDistance);
+    int straightSteps = std::max(columnDistance, rowDistance) - diagonalSteps;
+    return diagonalSteps * DiagonalStepCost + straightSteps * StraightStepCost;
 }
 
 bool Pathfinder::OpenEntryIsWorse::operator()(const OpenEntry& left, const OpenEntry& right) const
@@ -36,19 +39,21 @@ bool Pathfinder::OpenEntryIsWorse::operator()(const OpenEntry& left, const OpenE
 
 std::vector<GridCell> Pathfinder::findPath(const Grid& grid, GridCell start, GridCell goal)
 {
-    std::vector<GridCell> path;
-    expandedCells.clear();
-    if (!grid.isWalkable(start) || !grid.isWalkable(goal))
-    {
-        return path;
-    }
-
     // Reset the bookkeeping. assign() reuses the memory once the arrays have grown to the grid's size.
+    lastStart = start;
+    lastGoal = goal;
     std::size_t cellCount = grid.getCellCount();
     costFromStart.assign(cellCount, Unreached);
     cameFrom.assign(cellCount, NoCell);
     searchStates.assign(cellCount, SearchState::UNVISITED);
     openHeap.clear();
+    expandedCells.clear();
+
+    std::vector<GridCell> path;
+    if (!grid.isWalkable(start) || !grid.isWalkable(goal))
+    {
+        return path;
+    }
 
     std::size_t startIndex = grid.indexOf(start);
     std::size_t goalIndex = grid.indexOf(goal);
@@ -147,4 +152,45 @@ std::vector<GridCell> Pathfinder::findPath(const Grid& grid, GridCell start, Gri
 const std::vector<std::size_t>& Pathfinder::getExpandedCells() const
 {
     return expandedCells;
+}
+
+GridCell Pathfinder::getStart() const
+{
+    return lastStart;
+}
+
+GridCell Pathfinder::getGoal() const
+{
+    return lastGoal;
+}
+
+bool Pathfinder::wasExpanded(std::size_t cellIndex) const
+{
+    checkIndex(cellIndex);
+    return searchStates[cellIndex] == SearchState::CLOSED;
+}
+
+int Pathfinder::getCostFromStart(std::size_t cellIndex) const
+{
+    checkIndex(cellIndex);
+    return costFromStart[cellIndex];
+}
+
+std::optional<std::size_t> Pathfinder::getCameFrom(std::size_t cellIndex) const
+{
+    checkIndex(cellIndex);
+    if (cameFrom[cellIndex] == NoCell)
+    {
+        return std::nullopt;
+    }
+    return cameFrom[cellIndex];
+}
+
+void Pathfinder::checkIndex(std::size_t cellIndex) const
+{
+    if (cellIndex >= searchStates.size())
+    {
+        throw GridBoundsError("Cell index " + std::to_string(cellIndex) + " is outside the last search's "
+                              + std::to_string(searchStates.size()) + " cells.");
+    }
 }

@@ -9,6 +9,7 @@
 #include "simulation/World.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -321,6 +322,149 @@ namespace
         bool lostSightAfterMoving = !world.canPlayerSeeEnemy();
         return seesFromWhereItShot && playerMovedUp && lostSightAfterMoving;
     }
+
+    // ---- Math views ----
+
+    bool ddaTraceRecordsEveryStep()
+    {
+        // A ray from (0.5, 0.5) along (2, 1) meets a hard wall at (3, 1). Worked by hand:
+        // tDeltaX = 1 / |dx| = 1.118 and tDeltaY = 1 / |dy| = 2.236. The first boundaries are at
+        // tMaxX = 0.5 x 1.118 = 0.559 and tMaxY = 0.5 x 2.236 = 1.118.
+        // Steps: column to (1, 0) at 0.559, row to (1, 1) at 1.118, column to (2, 1) at 1.677,
+        // column to (3, 1) at 2.795, where the wall stops the ray on its face at (3.0, 1.75).
+        Grid grid(6, 4);
+        grid.setTile(GridCell{3, 1}, TileType::HARD_WALL);
+        Raycaster raycaster;
+        RayTrace trace = raycaster.traceRay(sf::Vector2f(0.5f, 0.5f), sf::Vector2f(2.f, 1.f).normalized(), grid);
+        if (trace.steps.size() != 4)
+        {
+            return false;
+        }
+
+        bool deltasMatch = isNear(trace.distancePerColumn, 1.118034f) && isNear(trace.distancePerRow, 2.236068f);
+        bool firstBoundariesMatch = isNear(trace.steps[0].distanceToNextColumn, 0.559017f)
+                                    && isNear(trace.steps[0].distanceToNextRow, 1.118034f);
+        bool axesMatch = trace.steps[0].crossedColumn && !trace.steps[1].crossedColumn && trace.steps[2].crossedColumn
+                         && trace.steps[3].crossedColumn;
+        bool cellsMatch = trace.steps[0].cell == GridCell{1, 0} && trace.steps[1].cell == GridCell{1, 1}
+                          && trace.steps[2].cell == GridCell{2, 1} && trace.steps[3].cell == GridCell{3, 1};
+        bool crossingsMatch = isNear(trace.steps[0].crossingDistance, 0.559017f)
+                              && isNear(trace.steps[1].crossingDistance, 1.118034f)
+                              && isNear(trace.steps[2].crossingDistance, 1.677051f)
+                              && isNear(trace.steps[3].crossingDistance, 2.795085f);
+        bool hitOnWallFace = isNear(trace.hit.point.x, 3.f) && isNear(trace.hit.point.y, 1.75f);
+        return deltasMatch && firstBoundariesMatch && axesMatch && cellsMatch && crossingsMatch && hitOnWallFace;
+    }
+
+    bool aStarKeepsCostsAndParentsOfExpandedCells()
+    {
+        Level level = parseLevel({
+            ".......",
+            "...#...",
+            ".P.#.E.",
+            "...#...",
+            ".......",
+        });
+        Pathfinder pathfinder;
+        std::vector<GridCell> path = pathfinder.findPath(level.grid, level.playerSpawn, level.enemySpawn);
+        std::size_t startIndex = level.grid.indexOf(level.playerSpawn);
+        std::size_t goalIndex = level.grid.indexOf(level.enemySpawn);
+
+        bool goalWasExpanded = pathfinder.wasExpanded(goalIndex);
+        bool startCostsNothing = pathfinder.getCostFromStart(startIndex) == 0
+                                 && !pathfinder.getCameFrom(startIndex).has_value();
+        bool goalCostIsPathCost = pathfinder.getCostFromStart(goalIndex) == pathCost(path);
+        bool estimatesAreOctile = Pathfinder::estimateCost(level.playerSpawn, level.enemySpawn) == 40
+                                  && Pathfinder::estimateCost(level.enemySpawn, level.enemySpawn) == 0;
+
+        // Following parents from the goal walks the path backwards to the start.
+        std::size_t cellIndex = goalIndex;
+        std::size_t parentsFollowed = 0;
+        while (pathfinder.getCameFrom(cellIndex).has_value() && parentsFollowed < path.size())
+        {
+            cellIndex = pathfinder.getCameFrom(cellIndex).value();
+            parentsFollowed += 1;
+        }
+        bool parentsLeadToStart = cellIndex == startIndex && parentsFollowed + 1 == path.size();
+
+        return goalWasExpanded && startCostsNothing && goalCostIsPathCost && estimatesAreOctile && parentsLeadToStart;
+    }
+
+    bool tilesSitContiguouslyInMemory()
+    {
+        // Cell (12, 7) has index 7 x 48 + 12 = 348. At 4 bytes per tile, it starts 1392 bytes after cell (0, 0).
+        Grid grid(48, 27);
+        const Tile* firstTile = &grid.getTile(GridCell{0, 0});
+        const Tile* cellTile = &grid.getTile(GridCell{12, 7});
+        std::ptrdiff_t tilesApart = cellTile - firstTile;
+
+        bool fourBytesPerTile = sizeof(Tile) == 4;
+        bool tilesApartIsIndex = tilesApart == 348 && grid.indexOf(GridCell{12, 7}) == 348;
+        bool bytesApartIsIndexTimesSize = static_cast<std::size_t>(tilesApart) * sizeof(Tile) == 1392;
+        return fourBytesPerTile && tilesApartIsIndex && bytesApartIsIndexTimesSize;
+    }
+
+    bool endToEndDdaTraceAgreesWithLineOfSight()
+    {
+        World world(parseLevel(CorridorRows));
+        sf::Vector2f enemyPosition = world.getEnemy().getPosition();
+
+        // Before the shot, the trace ends on the soft wall, and the enemy is hidden.
+        RayTrace before = world.traceRayFromPlayer(enemyPosition);
+        bool stopsAtWall = !before.steps.empty() && before.steps.back().cell == GridCell{3, 1}
+                           && isNear(before.hit.distance, 1.5f);
+        bool hiddenBefore = !world.canPlayerSeeEnemy();
+
+        // After one shot along the corridor, the trace runs through the slot to the far wall.
+        world.damageTileAt(CorridorSoftWallPosition);
+        RayTrace after = world.traceRayFromPlayer(enemyPosition);
+        bool runsThroughSlot = !after.steps.empty() && after.steps.back().cell == GridCell{6, 1}
+                               && isNear(after.hit.distance, 4.5f);
+        bool visibleAfter = world.canPlayerSeeEnemy();
+
+        return stopsAtWall && hiddenBefore && runsThroughSlot && visibleAfter;
+    }
+
+    bool endToEndRouteCostsAddUpStepByStep()
+    {
+        // The detour from the shortcut test: 100 is the cheapest route.
+        World world(parseLevel({
+            "#########",
+            "#P..+..E#",
+            "#.#####.#",
+            "#.......#",
+            "#########",
+        }));
+        const Grid& grid = world.getGrid();
+        const Pathfinder& pathfinder = world.getPathfinder();
+        const std::vector<GridCell>& path = world.getEnemy().getPath();
+        if (path.size() < 2)
+        {
+            return false;
+        }
+
+        // Each step along the route adds exactly its own cost to g.
+        bool everyStepAddsItsCost = true;
+        for (std::size_t index = 1; index < path.size(); ++index)
+        {
+            int costBefore = pathfinder.getCostFromStart(grid.indexOf(path[index - 1]));
+            int costAfter = pathfinder.getCostFromStart(grid.indexOf(path[index]));
+            bool diagonal = path[index].column != path[index - 1].column && path[index].row != path[index - 1].row;
+            int expectedStepCost = Pathfinder::StraightStepCost;
+            if (diagonal)
+            {
+                expectedStepCost = Pathfinder::DiagonalStepCost;
+            }
+            if (costAfter - costBefore != expectedStepCost)
+            {
+                everyStepAddsItsCost = false;
+            }
+        }
+
+        bool goalCostIsRouteCost = pathfinder.getCostFromStart(grid.indexOf(path.back())) == 100;
+        bool estimateNeverOverestimates = Pathfinder::estimateCost(pathfinder.getStart(), pathfinder.getGoal()) <= 100;
+        return everyStepAddsItsCost && goalCostIsRouteCost && estimateNeverOverestimates;
+    }
 }
 
 int main()
@@ -345,6 +489,13 @@ int main()
             endToEndShootingHoleShowsEnemyThroughStandingWall);
     runTest("End to end: a bullet hole gives sight only along the line of fire",
             endToEndHoleGivesSightOnlyAlongLineOfFire);
+    runTest("The DDA trace records tMaxX, tMaxY, and the axis of every step", ddaTraceRecordsEveryStep);
+    runTest("A* keeps g and the parent of every expanded cell", aStarKeepsCostsAndParentsOfExpandedCells);
+    runTest("Tiles sit contiguously: cell (12, 7) is 1392 bytes after cell (0, 0)", tilesSitContiguouslyInMemory);
+    runTest("End to end: the DDA trace agrees with line of sight, before and after a bullet hole",
+            endToEndDdaTraceAgreesWithLineOfSight);
+    runTest("End to end: along the enemy's route, each step adds its own cost to g",
+            endToEndRouteCostsAddUpStepByStep);
 
     std::cout << '\n' << passedTestCount << " passed, " << failedTestCount << " failed\n";
     if (failedTestCount > 0)

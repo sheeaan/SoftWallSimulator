@@ -41,6 +41,9 @@ public:
     const SimulationStatistics& getStatistics() const;
     bool canPlayerSeeEnemy() const;
 
+    // The full DDA record of one ray from the player toward a point, for the math view.
+    RayTrace traceRayFromPlayer(sf::Vector2f toward) const;
+
 private:
     void castVisibility();
     void recalculateEnemyPath();

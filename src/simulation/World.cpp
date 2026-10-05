@@ -86,6 +86,17 @@ bool World::canPlayerSeeEnemy() const
     return raycaster.hasLineOfSight(player.getPosition(), enemy.getPosition(), grid);
 }
 
+RayTrace World::traceRayFromPlayer(sf::Vector2f toward) const
+{
+    sf::Vector2f offset = toward - player.getPosition();
+    sf::Vector2f direction(1.f, 0.f); // A point on top of the player has no direction; look east.
+    if (offset.length() > 0.001f)
+    {
+        direction = offset.normalized();
+    }
+    return raycaster.traceRay(player.getPosition(), direction, grid);
+}
+
 void World::castVisibility()
 {
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();

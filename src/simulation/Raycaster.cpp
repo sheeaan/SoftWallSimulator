@@ -24,7 +24,8 @@ Raycaster::Raycaster()
     visibilityHits.reserve(RayCount);
 }
 
-RayHit Raycaster::castRay(sf::Vector2f origin, sf::Vector2f direction, const Grid& grid) const
+RayHit Raycaster::castRay(sf::Vector2f origin, sf::Vector2f direction, const Grid& grid,
+                          std::vector<DdaStep>* stepLog) const
 {
     const float infinity = std::numeric_limits<float>::infinity();
     GridCell cell = cellContaining(origin);
@@ -75,8 +76,13 @@ RayHit Raycaster::castRay(sf::Vector2f origin, sf::Vector2f direction, const Gri
     int maximumSteps = grid.getColumnCount() + grid.getRowCount() + 2;
     for (int step = 0; step < maximumSteps; ++step)
     {
+        // tMaxX and tMaxY before this step, kept for the step log.
+        float columnDistanceBeforeStep = distanceToNextColumn;
+        float rowDistanceBeforeStep = distanceToNextRow;
+        bool crossedColumn = distanceToNextColumn < distanceToNextRow;
+
         float crossingDistance = 0.f;
-        if (distanceToNextColumn < distanceToNextRow)
+        if (crossedColumn)
         {
             crossingDistance = distanceToNextColumn;
             distanceToNextColumn += distancePerColumn;
@@ -87,6 +93,17 @@ RayHit Raycaster::castRay(sf::Vector2f origin, sf::Vector2f direction, const Gri
             crossingDistance = distanceToNextRow;
             distanceToNextRow += distancePerRow;
             cell.row += rowStep;
+        }
+
+        if (stepLog != nullptr)
+        {
+            DdaStep loggedStep;
+            loggedStep.distanceToNextColumn = columnDistanceBeforeStep;
+            loggedStep.distanceToNextRow = rowDistanceBeforeStep;
+            loggedStep.crossedColumn = crossedColumn;
+            loggedStep.crossingDistance = crossingDistance;
+            loggedStep.cell = cell;
+            stepLog->push_back(loggedStep);
         }
 
         if (grid.blocksVision(cell))
@@ -110,6 +127,25 @@ RayHit Raycaster::castRay(sf::Vector2f origin, sf::Vector2f direction, const Gri
     stuckHit.distance = 0.f;
     stuckHit.cell = cell;
     return stuckHit;
+}
+
+RayTrace Raycaster::traceRay(sf::Vector2f origin, sf::Vector2f direction, const Grid& grid) const
+{
+    RayTrace trace;
+    trace.origin = origin;
+    trace.direction = direction;
+    trace.distancePerColumn = std::numeric_limits<float>::infinity();
+    trace.distancePerRow = std::numeric_limits<float>::infinity();
+    if (direction.x != 0.f)
+    {
+        trace.distancePerColumn = std::abs(1.f / direction.x);
+    }
+    if (direction.y != 0.f)
+    {
+        trace.distancePerRow = std::abs(1.f / direction.y);
+    }
+    trace.hit = castRay(origin, direction, grid, &trace.steps);
+    return trace;
 }
 
 void Raycaster::castVisibility(sf::Vector2f origin, const Grid& grid)
