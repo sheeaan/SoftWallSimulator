@@ -58,6 +58,10 @@ namespace
             return "SOFT_WALL";
         case TileType::HARD_WALL:
             return "HARD_WALL";
+        case TileType::REINFORCED_WALL:
+            return "REINFORCED_WALL";
+        case TileType::BARRICADE:
+            return "BARRICADE";
         }
         return "UNKNOWN";
     }

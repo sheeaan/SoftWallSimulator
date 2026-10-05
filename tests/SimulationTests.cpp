@@ -82,6 +82,24 @@ namespace
         return false;
     }
 
+    // Advances the world in 0.05-second steps, the same cap the game puts on a frame, so nothing tunnels through a wall.
+    void runWorld(World& world, float seconds, sf::Vector2f inputDirection)
+    {
+        const float stepSeconds = 0.05f;
+        long stepCount = std::lround(seconds / stepSeconds);
+        for (long stepIndex = 0; stepIndex < stepCount; ++stepIndex)
+        {
+            world.update(stepSeconds, inputDirection);
+        }
+    }
+
+    TileType tileAt(const World& world, GridCell cell)
+    {
+        return world.getGrid().getTile(cell).type;
+    }
+
+    const sf::Vector2f NoInput(0.f, 0.f);
+
     // Player and enemy in one corridor, with a soft wall at column 3 between them.
     const std::vector<std::string> CorridorRows = {
         "#######",
@@ -465,6 +483,288 @@ namespace
         bool estimateNeverOverestimates = Pathfinder::estimateCost(pathfinder.getStart(), pathfinder.getGoal()) <= 100;
         return everyStepAddsItsCost && goalCostIsRouteCost && estimateNeverOverestimates;
     }
+
+    // ---- Siege mechanics ----
+
+    bool reinforcingTurnsDrywallIntoSteel()
+    {
+        Grid grid(5, 3);
+        grid.setTile(GridCell{2, 1}, TileType::SOFT_WALL);
+        grid.setTile(GridCell{4, 1}, TileType::HARD_WALL);
+
+        bool reinforced = grid.reinforceTile(GridCell{2, 1});
+        bool isSteel = grid.getTile(GridCell{2, 1}).type == TileType::REINFORCED_WALL;
+        bool blocksWalkingAndVision = !grid.isWalkable(GridCell{2, 1}) && grid.blocksVision(GridCell{2, 1});
+        bool concreteCannotBeReinforced = !grid.reinforceTile(GridCell{4, 1});
+        return reinforced && isSteel && blocksWalkingAndVision && concreteCannotBeReinforced;
+    }
+
+    bool bulletsCannotOpenReinforcedWall()
+    {
+        World world(parseLevel({
+            "#######",
+            "#P.R.E#",
+            "#######",
+        }));
+        bool everyShotBounces = true;
+        for (int shot = 0; shot < 5; ++shot)
+        {
+            if (world.damageTileAt(sf::Vector2f(3.5f, 1.5f)) != DamageResult::NO_EFFECT)
+            {
+                everyShotBounces = false;
+            }
+        }
+        bool stillSteel = tileAt(world, GridCell{3, 1}) == TileType::REINFORCED_WALL;
+        return everyShotBounces && stillSteel && !world.canPlayerSeeEnemy();
+    }
+
+    bool exothermicChargeBurnsThroughAfterFuse()
+    {
+        // The attacker stands right next to the reinforced wall.
+        World world(parseLevel({
+            "#######",
+            "#.PR.E#",
+            "#######",
+        }));
+        ChargePlacement placement = world.placeCharge(ChargeType::EXOTHERMIC, sf::Vector2f(3.5f, 1.5f));
+        bool placed = placement == ChargePlacement::PLACED
+                      && world.getChargesLeft(ChargeType::EXOTHERMIC) == World::ExothermicChargeCount - 1;
+
+        world.update(2.9f, NoInput);
+        bool holdsDuringFuse = tileAt(world, GridCell{3, 1}) == TileType::REINFORCED_WALL;
+        world.update(0.2f, NoInput);
+        bool burnedThrough = tileAt(world, GridCell{3, 1}) == TileType::EMPTY && world.getDetonations().size() == 1;
+        return placed && holdsDuringFuse && burnedThrough;
+    }
+
+    bool breachChargeOpensSoftWallAndSoftNeighbors()
+    {
+        // Above the target is drywall; below it is steel.
+        World world(parseLevel({
+            "#######",
+            "#..+..#",
+            "#.P+.E#",
+            "#..R..#",
+            "#######",
+        }));
+        bool steelRejected = world.placeCharge(ChargeType::BREACH, sf::Vector2f(3.5f, 3.5f)) == ChargePlacement::WRONG_SURFACE;
+        bool placed = world.placeCharge(ChargeType::BREACH, sf::Vector2f(3.5f, 2.5f)) == ChargePlacement::PLACED;
+
+        runWorld(world, World::BreachFuseSeconds + 0.1f, NoInput);
+        bool targetOpen = tileAt(world, GridCell{3, 2}) == TileType::EMPTY;
+        bool softNeighborOpen = tileAt(world, GridCell{3, 1}) == TileType::EMPTY;
+        bool steelNeighborHolds = tileAt(world, GridCell{3, 3}) == TileType::REINFORCED_WALL;
+        return steelRejected && placed && targetOpen && softNeighborOpen && steelNeighborHolds;
+    }
+
+    bool barricadeBlocksDoorwayAndBreaksInOneShot()
+    {
+        World world(parseLevel({
+            "#######",
+            "#P.=.E#",
+            "#######",
+        }));
+        bool blocksWalking = !world.getGrid().isWalkable(GridCell{3, 1}) && world.getEnemy().getPath().empty();
+        bool blocksSight = !world.canPlayerSeeEnemy();
+
+        DamageResult result = world.damageTileAt(sf::Vector2f(3.5f, 1.5f));
+        bool brokeInOneShot = result == DamageResult::DESTROYED && tileAt(world, GridCell{3, 1}) == TileType::EMPTY;
+        return blocksWalking && blocksSight && brokeInOneShot && world.canPlayerSeeEnemy();
+    }
+
+    bool droneIsFastAndCastsItsOwnRays()
+    {
+        World world(parseLevel({
+            "##########",
+            "#........#",
+            "#.P......#",
+            "#........#",
+            "#.......E#",
+            "##########",
+        }));
+        sf::Vector2f playerStart = world.getPlayer().getPosition();
+        world.toggleDrone();
+        bool driving = world.isDrivingDrone() && world.getDrone().has_value();
+
+        runWorld(world, 0.2f, sf::Vector2f(1.f, 0.f));
+        float droneTravel = world.getDrone().value().getPosition().x - playerStart.x;
+        bool movedAtDroneSpeed = isNear(droneTravel, Drone::Speed * 0.2f);
+        bool playerStayed = world.getPlayer().getPosition() == playerStart;
+        bool fasterThanPlayer = Drone::Speed > Player::Speed;
+        bool castsOwnRays = world.getDroneVisibility().size() == 360;
+        return driving && movedAtDroneSpeed && playerStayed && fasterThanPlayer && castsOwnRays;
+    }
+
+    bool droneSpotsEnemyAndMarkFades()
+    {
+        // The defender is behind a wall. The drone rolls under the barricade to see it.
+        World world(parseLevel({
+            "#########",
+            "#P..#..E#",
+            "#...=...#",
+            "#...#...#",
+            "#########",
+        }));
+        bool hiddenAtStart = !world.isEnemySpotted();
+
+        world.toggleDrone();
+        runWorld(world, 0.1f, sf::Vector2f(0.f, 1.f));
+        runWorld(world, 0.45f, sf::Vector2f(1.f, 0.f));
+        bool droneRolledUnderBarricade = world.getDrone().value().getCell() == GridCell{5, 2};
+        bool spottedByDrone = world.isEnemySpotted();
+
+        // Back to the attacker, who cannot see the defender: the mark lasts four seconds.
+        world.toggleDrone();
+        runWorld(world, 3.9f, NoInput);
+        bool stillMarked = world.isEnemySpotted();
+        runWorld(world, 0.2f, NoInput);
+        bool markFaded = !world.isEnemySpotted();
+        return hiddenAtStart && droneRolledUnderBarricade && spottedByDrone && stillMarked && markFaded;
+    }
+
+    bool holdingBombSitePlantsDefuserAndWins()
+    {
+        Round round(true);
+        round.update(Round::PreparationSeconds + 0.01f, false);
+        bool actionStarted = round.getPhase() == RoundPhase::ACTION;
+
+        // Stepping out of the site starts the plant over.
+        round.update(2.f, true);
+        round.update(0.1f, false);
+        bool leavingResetsPlant = round.getPlantProgress() == 0.f;
+
+        for (int step = 0; step < 41; ++step)
+        {
+            round.update(0.1f, true);
+        }
+        bool attackersWon = round.getPhase() == RoundPhase::ATTACKERS_WIN
+                            && round.getEndReason() == RoundEndReason::DEFUSER_PLANTED;
+        return actionStarted && leavingResetsPlant && attackersWon;
+    }
+
+    bool defenderReinforcesPlannedWallsDuringPreparation()
+    {
+        World world(parseLevel({
+            "##########",
+            "#P...r.G.#",
+            "#....r.*E#",
+            "##########",
+        }));
+        bool startsPreparing = world.getRound().getPhase() == RoundPhase::PREPARATION
+                               && world.getDefenderState() == DefenderState::PREPARING;
+
+        runWorld(world, 6.f, NoInput);
+        bool bothReinforced = tileAt(world, GridCell{5, 1}) == TileType::REINFORCED_WALL
+                              && tileAt(world, GridCell{5, 2}) == TileType::REINFORCED_WALL;
+        bool stillPreparationPhase = world.getRound().getPhase() == RoundPhase::PREPARATION;
+        bool nowGuarding = world.getDefenderState() == DefenderState::GUARDING;
+        return startsPreparing && bothReinforced && stillPreparationPhase && nowGuarding;
+    }
+
+    bool runningOutOfTimeMeansDefendersWin()
+    {
+        Round round(true);
+        round.update(Round::PreparationSeconds + 0.01f, false);
+        round.update(Round::ActionSeconds - 1.f, false);
+        bool stillPlaying = round.getPhase() == RoundPhase::ACTION;
+        round.update(1.5f, false);
+        bool defendersWon = round.getPhase() == RoundPhase::DEFENDERS_WIN
+                            && round.getEndReason() == RoundEndReason::TIME_EXPIRED;
+        return stillPlaying && defendersWon;
+    }
+
+    bool defenderReachingAttackerWinsRound()
+    {
+        // One open room: the moment the action phase starts, the defender sees the attacker.
+        World world(parseLevel({
+            "##########",
+            "#P.....G*#",
+            "#......*E#",
+            "##########",
+        }));
+        runWorld(world, Round::PreparationSeconds + 5.f, NoInput);
+        return world.getRound().getPhase() == RoundPhase::DEFENDERS_WIN
+               && world.getRound().getEndReason() == RoundEndReason::ATTACKER_ELIMINATED;
+    }
+
+    bool defenderGuardsUntilItSpotsAttacker()
+    {
+        // The wall hides the attacker's corner from the guard point. Walking right along the bottom row reveals them.
+        World world(parseLevel({
+            "############",
+            "#....#...G*#",
+            "#....#....*#",
+            "#..P......E#",
+            "############",
+        }));
+        runWorld(world, Round::PreparationSeconds + 1.f, NoInput);
+        bool guardsWhileHidden = world.getDefenderState() == DefenderState::GUARDING;
+
+        runWorld(world, 0.5f, sf::Vector2f(1.f, 0.f));
+        bool huntsOnceSeen = world.getDefenderState() == DefenderState::HUNTING;
+        return guardsWhileHidden && huntsOnceSeen;
+    }
+
+    bool endToEndDefenderReinforcesThermiteBreachesDefenderHunts()
+    {
+        World world(parseLevel({
+            "###########",
+            "#....r.G*.#",
+            "#.P..r.**.#",
+            "#....r.**E#",
+            "###########",
+        }));
+
+        // Preparation: the defender walls off the site with steel.
+        runWorld(world, Round::PreparationSeconds + 0.1f, NoInput);
+        bool wallReinforced = tileAt(world, GridCell{5, 1}) == TileType::REINFORCED_WALL
+                              && tileAt(world, GridCell{5, 2}) == TileType::REINFORCED_WALL
+                              && tileAt(world, GridCell{5, 3}) == TileType::REINFORCED_WALL;
+
+        // Action: walk up to the steel and burn through it.
+        runWorld(world, 0.35f, sf::Vector2f(1.f, 0.f));
+        bool chargePlaced = world.placeCharge(ChargeType::EXOTHERMIC, sf::Vector2f(5.5f, 2.5f)) == ChargePlacement::PLACED;
+        bool guardingBehindSteel = world.getDefenderState() == DefenderState::GUARDING;
+        runWorld(world, World::ExothermicFuseSeconds + 0.05f, NoInput);
+        bool breachOpen = tileAt(world, GridCell{5, 1}) == TileType::EMPTY && tileAt(world, GridCell{5, 2}) == TileType::EMPTY
+                          && tileAt(world, GridCell{5, 3}) == TileType::EMPTY;
+
+        // The defender sees the attacker through the breach and comes through it.
+        bool hunting = world.getDefenderState() == DefenderState::HUNTING;
+        const std::vector<GridCell>& path = world.getEnemy().getPath();
+        bool routeThroughBreach = pathContains(path, GridCell{5, 1}) || pathContains(path, GridCell{5, 2})
+                                  || pathContains(path, GridCell{5, 3});
+        runWorld(world, 2.f, NoInput);
+        bool attackerCaught = world.getRound().getEndReason() == RoundEndReason::ATTACKER_ELIMINATED;
+
+        return wallReinforced && chargePlaced && guardingBehindSteel && breachOpen && hunting && routeThroughBreach
+               && attackerCaught;
+    }
+
+    bool endToEndAttackerBreaksBarricadeAndPlants()
+    {
+        // The defender's room only touches the site through steel, so the defender cannot reach it.
+        World world(parseLevel({
+            "###########",
+            "#P..=..G..#",
+            "#...#..*..#",
+            "#...####R##",
+            "#...#....E#",
+            "###########",
+        }));
+        runWorld(world, Round::PreparationSeconds + 0.05f, NoInput);
+        bool actionPhase = world.getRound().getPhase() == RoundPhase::ACTION;
+
+        runWorld(world, 0.25f, sf::Vector2f(1.f, 0.f));
+        bool barricadeBroken = world.damageTileAt(sf::Vector2f(4.5f, 1.5f)) == DamageResult::DESTROYED;
+        runWorld(world, 0.75f, sf::Vector2f(1.f, 0.f));
+        bool standingInSite = world.getPlayer().getCell() == GridCell{7, 1};
+
+        runWorld(world, Round::PlantSeconds + 0.1f, NoInput);
+        bool attackersWon = world.getRound().getPhase() == RoundPhase::ATTACKERS_WIN
+                            && world.getRound().getEndReason() == RoundEndReason::DEFUSER_PLANTED;
+        return actionPhase && barricadeBroken && standingInSite && attackersWon;
+    }
 }
 
 int main()
@@ -496,6 +796,25 @@ int main()
             endToEndDdaTraceAgreesWithLineOfSight);
     runTest("End to end: along the enemy's route, each step adds its own cost to g",
             endToEndRouteCostsAddUpStepByStep);
+    runTest("Reinforcing turns drywall into steel that blocks walking and vision", reinforcingTurnsDrywallIntoSteel);
+    runTest("Bullets cannot open a reinforced wall", bulletsCannotOpenReinforcedWall);
+    runTest("An exothermic charge burns through a reinforced wall after its 3-second fuse",
+            exothermicChargeBurnsThroughAfterFuse);
+    runTest("A breach charge opens a soft wall and its soft neighbors, but not steel",
+            breachChargeOpensSoftWallAndSoftNeighbors);
+    runTest("A barricade blocks the doorway and breaks in one shot", barricadeBlocksDoorwayAndBreaksInOneShot);
+    runTest("The drone is faster than the attacker and casts its own 360 rays", droneIsFastAndCastsItsOwnRays);
+    runTest("What the drone sees is spotted, and the mark fades after 4 seconds", droneSpotsEnemyAndMarkFades);
+    runTest("Holding the bomb site for 4 seconds plants the defuser and wins", holdingBombSitePlantsDefuserAndWins);
+    runTest("The defender reinforces its planned walls during preparation",
+            defenderReinforcesPlannedWallsDuringPreparation);
+    runTest("When the action phase runs out, the defenders win", runningOutOfTimeMeansDefendersWin);
+    runTest("When the defender reaches the attacker, the defenders win", defenderReachingAttackerWinsRound);
+    runTest("The defender guards the site until it spots the attacker, then hunts", defenderGuardsUntilItSpotsAttacker);
+    runTest("End to end: the defender reinforces, Thermite burns through, and the defender hunts through the breach",
+            endToEndDefenderReinforcesThermiteBreachesDefenderHunts);
+    runTest("End to end: the attacker breaks a barricade, holds the site, and wins",
+            endToEndAttackerBreaksBarricadeAndPlants);
 
     std::cout << '\n' << passedTestCount << " passed, " << failedTestCount << " failed\n";
     if (failedTestCount > 0)

@@ -25,6 +25,7 @@ public:
     GridCell getCell() const;
     const std::vector<GridCell>& getPath() const;
     std::size_t getNextWaypointIndex() const;
+    bool hasFinishedPath() const; // True once the enemy stands on the last cell of a path.
 
 private:
     sf::Vector2f position;

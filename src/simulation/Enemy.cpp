@@ -63,3 +63,8 @@ std::size_t Enemy::getNextWaypointIndex() const
 {
     return nextWaypointIndex;
 }
+
+bool Enemy::hasFinishedPath() const
+{
+    return !path.empty() && nextWaypointIndex >= path.size();
+}
