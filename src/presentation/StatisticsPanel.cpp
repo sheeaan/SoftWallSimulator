@@ -2,6 +2,7 @@
 
 #include "presentation/Fonts.hpp"
 #include "presentation/Palette.hpp"
+#include "presentation/Textures.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -18,6 +19,8 @@ namespace
 
 StatisticsPanel::StatisticsPanel(sf::Vector2u windowSize)
     : font(loadFont("JetBrainsMono-Regular.ttf"))
+    , emblemTexture(loadSiegeTexture("r6-emblem.png"))
+    , emblem(emblemTexture)
     , titleText(font, "SOFT WALL SIMULATOR", windowSize.y / 46)
     , bodyText(font, "", windowSize.y / 58)
     , padding(static_cast<float>(windowSize.y) / 60.f)
@@ -27,6 +30,11 @@ StatisticsPanel::StatisticsPanel(sf::Vector2u windowSize)
     bodyText.setFillColor(Palette::PanelText);
     background.setFillColor(Palette::PanelBackground);
     accentBar.setFillColor(Palette::AttackerBlue);
+
+    // The emblem stands beside the title, about twice as tall as its capitals.
+    float emblemHeight = static_cast<float>(titleText.getCharacterSize()) * 1.5f;
+    float emblemScale = emblemHeight / static_cast<float>(emblemTexture.getSize().y);
+    emblem.setScale(sf::Vector2f(emblemScale, emblemScale));
 }
 
 void StatisticsPanel::update(float seconds, const World& world)
@@ -84,10 +92,16 @@ void StatisticsPanel::update(float seconds, const World& world)
     lines << std::setw(LabelWidth) << "Enemy" << enemyText;
     bodyText.setString(lines.str());
 
-    // Lay the panel out around the text: the title, the body under it, padding all round.
-    titleText.setPosition(sf::Vector2f(padding * 2.f, padding * 1.6f));
+    // Lay the panel out around the text: the emblem with the title centered beside it, the body under them,
+    // padding all round.
+    emblem.setPosition(sf::Vector2f(padding * 2.f, padding * 1.6f));
+    sf::FloatRect emblemBounds = emblem.getGlobalBounds();
+    sf::FloatRect titleLocalBounds = titleText.getLocalBounds();
+    titleText.setOrigin(sf::Vector2f(titleLocalBounds.position.x, titleLocalBounds.position.y + titleLocalBounds.size.y / 2.f));
+    titleText.setPosition(sf::Vector2f(emblemBounds.position.x + emblemBounds.size.x + padding * 0.8f,
+                                       emblemBounds.position.y + emblemBounds.size.y / 2.f));
     sf::FloatRect titleBounds = titleText.getGlobalBounds();
-    bodyText.setPosition(sf::Vector2f(padding * 2.f, titleBounds.position.y + titleBounds.size.y + padding));
+    bodyText.setPosition(sf::Vector2f(padding * 2.f, emblemBounds.position.y + emblemBounds.size.y + padding));
     sf::FloatRect bodyBounds = bodyText.getGlobalBounds();
 
     float right = std::max(titleBounds.position.x + titleBounds.size.x, bodyBounds.position.x + bodyBounds.size.x) + padding;
@@ -112,6 +126,7 @@ void StatisticsPanel::draw(sf::RenderTarget& target) const
     target.setView(target.getDefaultView());
     target.draw(background);
     target.draw(accentBar);
+    target.draw(emblem);
     target.draw(titleText);
     target.draw(bodyText);
     target.setView(previousView);

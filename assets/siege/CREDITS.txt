@@ -1,0 +1,10 @@
+The images in this folder come from Ubisoft's official Rainbow Six Siege fan kits,
+which Ubisoft publishes on its website for fans to use in fan creations.
+
+  striker.png    Striker operator icon, Y9S2 "New Blood" fan kit (resized to 256 x 256)
+  sentry.png     Sentry operator icon, Y9S2 "New Blood" fan kit (resized to 256 x 256)
+  r6-emblem.png  Rainbow Six Siege emblem, cropped from the Y5S3 "Shadow Legacy" fan kit logo
+
+Tom Clancy's Rainbow Six Siege, its logos, and its operators are trademarks and copyrighted works
+of Ubisoft Entertainment. This is a non-commercial fan project. It is not affiliated with,
+sponsored by, or endorsed by Ubisoft. Remove these files if Ubisoft asks.

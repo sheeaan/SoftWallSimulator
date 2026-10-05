@@ -2,6 +2,7 @@
 
 #include "presentation/Fonts.hpp"
 #include "presentation/Palette.hpp"
+#include "presentation/Textures.hpp"
 
 #include <SFML/Graphics/RenderStates.hpp>
 #include <SFML/Graphics/View.hpp>
@@ -49,17 +50,30 @@ namespace
         std::string key;
         std::string action;
     };
+
+    // Scales a sprite to a square of the given size and centers it on a point.
+    void placeBadge(sf::Sprite& badge, float size, sf::Vector2f center)
+    {
+        sf::Vector2f textureSize(badge.getTexture().getSize());
+        badge.setScale(sf::Vector2f(size / textureSize.x, size / textureSize.y));
+        badge.setPosition(center - sf::Vector2f(size / 2.f, size / 2.f));
+    }
 }
 
 HeadsUpDisplay::HeadsUpDisplay(sf::Vector2u windowPixelSize)
     : font(loadFont("BarlowCondensed-SemiBold.ttf"))
+    , strikerBadge(loadSiegeTexture("striker.png"))
+    , sentryBadge(loadSiegeTexture("sentry.png"))
     , windowSize(windowPixelSize)
     , unit(static_cast<float>(windowPixelSize.y) / 100.f)
+    , strikerSprite(strikerBadge)
+    , sentrySprite(sentryBadge)
     , attackerText(font, "STRIKER", static_cast<unsigned int>(unit * 2.4f))
     , clockText(font, "", static_cast<unsigned int>(unit * 2.4f))
     , defenderText(font, "SENTRY", static_cast<unsigned int>(unit * 2.4f))
     , statusText(font, "", static_cast<unsigned int>(unit * 2.1f))
     , messageText(font, "", static_cast<unsigned int>(unit * 2.f))
+    , resultBadge(strikerBadge)
     , resultTitle(font, "", static_cast<unsigned int>(unit * 6.f))
     , resultReason(font, "", static_cast<unsigned int>(unit * 2.6f))
     , resultHint(font, "PRESS R FOR THE NEXT ROUND", static_cast<unsigned int>(unit * 2.f))
@@ -89,6 +103,13 @@ HeadsUpDisplay::HeadsUpDisplay(sf::Vector2u windowPixelSize)
     clockText.setFillColor(Palette::HudText);
     clockText.setPosition(sf::Vector2f(windowSize.x / 2.f, bannerMiddle));
 
+    // The official operator icons flank the banner, as in Siege's top bar.
+    float badgeSize = unit * 6.6f;
+    float badgeGap = unit * 0.6f;
+    placeBadge(strikerSprite, badgeSize, sf::Vector2f(bannerLeft - badgeGap - badgeSize / 2.f, bannerMiddle));
+    placeBadge(sentrySprite, badgeSize,
+               sf::Vector2f(bannerLeft + teamWidth * 2.f + clockWidth + badgeGap + badgeSize / 2.f, bannerMiddle));
+
     // The planting bar sits under the status line.
     float barWidth = clockWidth;
     plantBarBackground.setSize(sf::Vector2f(barWidth, unit * 0.8f));
@@ -99,14 +120,14 @@ HeadsUpDisplay::HeadsUpDisplay(sf::Vector2u windowPixelSize)
 
     messageText.setFillColor(Palette::HudMessage);
 
-    // The result panel fills the middle of the screen when a round ends.
-    sf::Vector2f resultSize(unit * 52.f, unit * 18.f);
+    // The result panel fills the middle of the screen when a round ends: the winner's icon, then the words.
+    sf::Vector2f resultSize(unit * 52.f, unit * 28.f);
     resultBackground.setSize(resultSize);
     resultBackground.setPosition((windowSize - resultSize) / 2.f);
     resultBackground.setFillColor(Palette::ResultBackground);
     resultReason.setFillColor(Palette::HudText);
     resultHint.setFillColor(Palette::HudMutedText);
-    centerText(resultHint, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f + unit * 5.5f));
+    centerText(resultHint, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f + unit * 10.5f));
 
     layOutPrompts(World::BreachChargeCount, World::HardBreachChargeCount);
 }
@@ -167,12 +188,15 @@ void HeadsUpDisplay::update(const World& world, float seconds)
         {
             resultTitle.setString("ATTACKERS WIN");
             resultTitle.setFillColor(Palette::AttackerBlue);
+            resultBadge.setTexture(strikerBadge, true);
         }
         else
         {
             resultTitle.setString("DEFENDERS WIN");
             resultTitle.setFillColor(Palette::DefenderOrange);
+            resultBadge.setTexture(sentryBadge, true);
         }
+        placeBadge(resultBadge, unit * 9.f, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f - unit * 7.5f));
 
         std::string reason;
         switch (round.getEndReason())
@@ -190,8 +214,8 @@ void HeadsUpDisplay::update(const World& world, float seconds)
             break;
         }
         resultReason.setString(reason);
-        centerText(resultTitle, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f - unit * 3.5f));
-        centerText(resultReason, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f + unit * 1.5f));
+        centerText(resultTitle, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f + unit * 1.f));
+        centerText(resultReason, sf::Vector2f(windowSize.x / 2.f, windowSize.y / 2.f + unit * 6.f));
     }
 
     int breachChargesLeft = world.getChargesLeft(ChargeType::BREACH);
@@ -218,6 +242,8 @@ void HeadsUpDisplay::draw(sf::RenderTarget& target) const
     target.draw(attackerBlock);
     target.draw(clockBlock);
     target.draw(defenderBlock);
+    target.draw(strikerSprite);
+    target.draw(sentrySprite);
     target.draw(attackerText);
     target.draw(clockText);
     target.draw(defenderText);
@@ -247,6 +273,7 @@ void HeadsUpDisplay::draw(sf::RenderTarget& target) const
     if (roundOver)
     {
         target.draw(resultBackground);
+        target.draw(resultBadge);
         target.draw(resultTitle);
         target.draw(resultReason);
         target.draw(resultHint);

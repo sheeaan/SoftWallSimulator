@@ -5,16 +5,18 @@
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Text.hpp>
+#include <SFML/Graphics/Texture.hpp>
 
-// A panel in the top-left corner with live numbers from the simulation.
+// A panel in the top-left corner with live numbers from the simulation, under the Rainbow Six emblem and title.
 // The text refreshes four times a second, so the numbers stay readable.
 class StatisticsPanel
 {
 public:
     explicit StatisticsPanel(sf::Vector2u windowSize);
 
-    // The texts point at the font member, so a copy would point at the original's font.
+    // The texts and the emblem point at the font and texture members, so a copy would point at the original's.
     StatisticsPanel(const StatisticsPanel&) = delete;
     StatisticsPanel& operator=(const StatisticsPanel&) = delete;
 
@@ -23,6 +25,8 @@ public:
 
 private:
     sf::Font font;
+    sf::Texture emblemTexture; // The Rainbow Six Siege emblem from Ubisoft's fan kit.
+    sf::Sprite emblem;
     sf::Text titleText;
     sf::Text bodyText;
     sf::RectangleShape background;
