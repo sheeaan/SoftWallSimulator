@@ -158,6 +158,7 @@ build/bin/Release/SoftWallTests.exe
 
 Single-configuration generators such as Ninja put the programs in `build/bin/` instead.
 The project was built and tested on Windows 11 with MSVC 19.29 (Visual Studio 2019 Build Tools).
+On every push, [GitHub Actions](.github/workflows/ci.yml) builds it with the same compiler on the `windows-2022` runner and runs the tests.
 
 ## Architecture
 
