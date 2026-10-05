@@ -129,7 +129,18 @@ Texture coordinates are an affine function of position, so the GPU's linear inte
 On an Intel Core Ultra 5 226V (Release build), the panel reports about 0.04 ms for the 360-ray cast.
 The longest A\* search measured, 656 cells across the whole map, took about 0.2 ms. The defender's short moves around the site take about 0.01 ms.
 
-![The math view: the DDA trace toward the cursor with its table, the hovered cell's memory layout, and A* costs around the site](docs/math-view.jpg)
+## Where to look in the code
+
+| Idea | Where |
+|---|---|
+| The tile layout and its bounds checks | `Tile` and `Grid::indexOf` in [Grid.hpp](src/simulation/Grid.hpp) and [Grid.cpp](src/simulation/Grid.cpp) |
+| The DDA ray, and the second DDA through bullet holes | `Raycaster::castRay` and `Raycaster::findStopDistance` in [Raycaster.cpp](src/simulation/Raycaster.cpp) |
+| A\* with a binary heap and reused buffers | `Pathfinder::findPath` in [Pathfinder.cpp](src/simulation/Pathfinder.cpp) |
+| Re-planning inside the shot that broke the wall | `World::damageTileAt` in [World.cpp](src/simulation/World.cpp) |
+| The defender's state machine | `World::updateDefender` in [World.cpp](src/simulation/World.cpp) |
+| The visibility polygon as light | `LightingRenderer::addLight` in [LightingRenderer.cpp](src/presentation/LightingRenderer.cpp) |
+| The drone-camera shader | [DroneCameraFilter.cpp](src/presentation/DroneCameraFilter.cpp) |
+| The tests, including two full rounds | [SimulationTests.cpp](tests/SimulationTests.cpp) |
 
 ## Controls
 
@@ -195,6 +206,24 @@ tests/
   SimulationTests.cpp       Framework-free tests that print PASS or FAIL.
 docs/
   MATH.md                   Derivations of every formula, with worked examples.
+.github/workflows/
+  ci.yml                    Builds the project and runs the tests on every push.
+```
+
+```mermaid
+flowchart LR
+    subgraph simulation ["simulation/ (no rendering, tested headless)"]
+        direction TB
+        input["Input<br/>shots, charges, drone"] --> update["World::update<br/>movement, fuses, defender A*,<br/>360 DDA rays, spotting, round"]
+    end
+    subgraph presentation ["presentation/"]
+        direction TB
+        scene["Scene texture<br/>floor, dust, walls"] --> light["Light map<br/>visibility fans, multiplied in"]
+        light --> top["On top of the dark<br/>edges, gadgets, defender, sparks"]
+        top --> shader["Drone-camera shader"]
+        shader --> hud["Math view, panel, HUD"]
+    end
+    simulation --> presentation
 ```
 
 Each frame runs in this order:
@@ -254,6 +283,19 @@ The defender is a state machine that only changes A\*'s goal:
 - **Preparing.** For each planned wall, the defender searches to every open side and walks to the closest. It stands there for 1.2 seconds, and the wall turns to steel.
 - **Guarding.** It walks between the site's guard points and pauses at each.
 - **Hunting.** The moment it has line of sight to Striker during the action phase, it chases. It re-plans whenever Striker changes cell or any tile changes, and it wins the round on contact.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    Preparing: Preparing<br/>goal = beside the next planned wall
+    Guarding: Guarding<br/>goal = the next guard point
+    Hunting: Hunting<br/>goal = Striker's cell
+    [*] --> Preparing: bomb round
+    [*] --> Hunting: free play
+    Preparing --> Guarding: last wall plated,<br/>or the action phase starts
+    Guarding --> Hunting: sees Striker<br/>in the action phase
+    Hunting --> [*]: within 0.6 tiles,<br/>defenders win
+```
 
 ### Destruction and charges
 
@@ -317,6 +359,15 @@ Levels without a bomb site run in free play: no clock, and the defender hunts fr
 - **One revision counter.** The grid counts every tile change, so the renderer rebuilds walls once per frame no matter what changed them: a shot, a charge, or a reinforcement.
 - **Errors are specific.** `GridBoundsError`, `LevelFormatError`, and `ResourceError` derive from `SimulatorError`, and each carries a message that names the problem.
 - **The code favors plain reading.** Types are written out instead of `auto`, loops are explicit, and names are full words.
+
+## References
+
+- John Amanatides and Andrew Woo, [*A Fast Voxel Traversal Algorithm for Ray Tracing*](https://www.eecs.yorku.ca/~amana/research/grid.pdf), Eurographics 1987. The DDA in `Raycaster`.
+- Peter E. Hart, Nils J. Nilsson, and Bertram Raphael, [*A Formal Basis for the Heuristic Determination of Minimum Cost Paths*](https://doi.org/10.1109/TSSC.1968.300136), IEEE Transactions on Systems Science and Cybernetics, 1968. The paper that introduced A\*.
+- Amit Patel, Red Blob Games: [*Introduction to the A\* Algorithm*](https://www.redblobgames.com/pathfinding/a-star/introduction.html), [*Heuristics*](http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html) for the octile distance, and [*2D Visibility*](https://www.redblobgames.com/articles/visibility/).
+- Lode Vandevenne, [*Raycasting*](https://lodev.org/cgtutor/raycasting.html). DDA in a Wolfenstein-style raycaster.
+- Squirrel Eiserloh, [*Math for Game Programmers: Juicing Your Cameras With Math*](https://www.gdcvault.com/play/1023557/Math-for-Game-Programmers-Juicing), GDC 2016. Trauma-based screen shake.
+- Julien L'Heureux, [*The Art of Destruction in Rainbow Six: Siege*](https://www.gdcvault.com/play/1023003/The-Art-of-Destruction-in), GDC 2016. How RealBlast made destruction a core part of Siege.
 
 ## Credits
 
