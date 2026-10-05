@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="470" viewBox="0 0 960 470" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <title>A bullet slot in a drywall tile</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5fd38d"/>
+    </marker>
+  </defs>
+  <rect width="960" height="470" rx="14" fill="#0b0f1a" stroke="#1f2738"/>
+  <text x="36" y="50" font-size="24" font-weight="600" fill="#eef1f6">A bullet slot: four panels wide, a quarter tile tall</text>
+  <text x="36" y="78" font-size="14" fill="#969eac">Each drywall tile keeps a 16-bit mask of its 4 × 4 panels. A shot clears the row of panels it hits, along the line of fire.</text>
+
+  <!-- One drywall tile, 288 pixels square: panel (c′, r′) at (216 + 72c′, 110 + 72r′). Row r′ = 2 has been shot out. -->
+  <g font-family="Consolas, Menlo, monospace" font-size="13" fill="#969eac" text-anchor="middle">
+    <text x="252" y="102">c′=0</text>
+    <text x="324" y="102">c′=1</text>
+    <text x="396" y="102">c′=2</text>
+    <text x="468" y="102">c′=3</text>
+  </g>
+  <g font-family="Consolas, Menlo, monospace" font-size="13" fill="#969eac">
+    <text x="514" y="150">r′=0</text>
+    <text x="514" y="222">r′=1</text>
+    <text x="514" y="304">r′=2</text>
+    <text x="514" y="366">r′=3</text>
+  </g>
+  <g fill="#d6cebe" stroke="#a9a293" stroke-width="1.5">
+    <rect x="216" y="110" width="72" height="72"/>
+    <rect x="288" y="110" width="72" height="72"/>
+    <rect x="360" y="110" width="72" height="72"/>
+    <rect x="432" y="110" width="72" height="72"/>
+    <rect x="216" y="182" width="72" height="72"/>
+    <rect x="288" y="182" width="72" height="72"/>
+    <rect x="360" y="182" width="72" height="72"/>
+    <rect x="432" y="182" width="72" height="72"/>
+    <rect x="216" y="326" width="72" height="72"/>
+    <rect x="288" y="326" width="72" height="72"/>
+    <rect x="360" y="326" width="72" height="72"/>
+    <rect x="432" y="326" width="72" height="72"/>
+  </g>
+  <g fill="#0d121d" stroke="#3a4357" stroke-width="1.5" stroke-dasharray="4 4">
+    <rect x="216" y="254" width="72" height="72"/>
+    <rect x="288" y="254" width="72" height="72"/>
+    <rect x="360" y="254" width="72" height="72"/>
+    <rect x="432" y="254" width="72" height="72"/>
+  </g>
+  <rect x="216" y="110" width="288" height="288" fill="none" stroke="#c4beb0" stroke-width="2"/>
+  <g font-family="Consolas, Menlo, monospace" font-size="14" text-anchor="middle">
+    <g fill="#6b6556">
+      <text x="252" y="151">bit 0</text>
+      <text x="324" y="151">bit 1</text>
+      <text x="396" y="151">bit 2</text>
+      <text x="468" y="151">bit 3</text>
+      <text x="252" y="223">bit 4</text>
+      <text x="324" y="223">bit 5</text>
+      <text x="396" y="223">bit 6</text>
+      <text x="468" y="223">bit 7</text>
+      <text x="252" y="367">bit 12</text>
+      <text x="324" y="367">bit 13</text>
+      <text x="396" y="367">bit 14</text>
+      <text x="468" y="367">bit 15</text>
+    </g>
+    <g fill="#4a5368">
+      <text x="252" y="295">bit 8</text>
+      <text x="324" y="295">bit 9</text>
+      <text x="396" y="295">bit 10</text>
+      <text x="468" y="295">bit 11</text>
+    </g>
+  </g>
+
+  <!-- Three rays from three places. Only the one along the line of fire gets through. -->
+  <line x1="40" y1="256" x2="548" y2="274" stroke="#5fd38d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <circle cx="40" cy="256" r="5" fill="#3696ff"/>
+  <text x="40" y="244" font-size="14" fill="#5fd38d">line of fire: passes</text>
+
+  <line x1="40" y1="188" x2="216" y2="197" stroke="#ff6b6b" stroke-width="2.5"/>
+  <circle cx="40" cy="188" r="5" fill="#3696ff"/>
+  <text x="40" y="176" font-size="14" fill="#ff6b6b">too high: plaster</text>
+
+  <line x1="190" y1="276" x2="273" y2="326" stroke="#ff6b6b" stroke-width="2.5"/>
+  <circle cx="190" cy="276" r="5" fill="#3696ff"/>
+  <text x="180" y="300" font-size="14" fill="#ff6b6b" text-anchor="end">too steep:</text>
+  <text x="180" y="318" font-size="14" fill="#ff6b6b" text-anchor="end">hits row 3</text>
+
+  <g stroke="#ff6b6b" stroke-width="3" stroke-linecap="round">
+    <line x1="210" y1="191" x2="222" y2="203"/>
+    <line x1="222" y1="191" x2="210" y2="203"/>
+    <line x1="267" y1="320" x2="279" y2="332"/>
+    <line x1="279" y1="320" x2="267" y2="332"/>
+  </g>
+
+  <!-- The mask, the shot rule, and the slope rule. -->
+  <g font-family="Consolas, Menlo, monospace" font-size="14">
+    <text x="590" y="130" fill="#969eac">bit(c′, r′) = 4 · r′ + c′</text>
+    <text x="590" y="162" fill="#969eac">before</text>
+    <text x="660" y="162" fill="#eef1f6">1111 1111 1111 1111</text>
+    <text x="840" y="162" fill="#eef1f6">0xFFFF</text>
+    <text x="590" y="186" fill="#969eac">after</text>
+    <text x="660" y="186" fill="#eef1f6">1111 <tspan fill="#ff8a24">0000</tspan> 1111 1111</text>
+    <text x="840" y="186" fill="#eef1f6">0xF0FF</text>
+    <text x="590" y="210" fill="#969eac">bits 15 ... 0, row r′ = 2 cleared</text>
+  </g>
+  <text x="590" y="252" font-size="15" fill="#eef1f6">A mostly horizontal shot clears the row it hits:</text>
+  <text x="590" y="276" font-size="14" font-family="Consolas, Menlo, monospace" fill="#ff8a24">r′ = floor(4 · (q_y − r))</text>
+  <text x="590" y="298" font-size="14" fill="#969eac">A mostly vertical shot clears a column instead.</text>
+  <text x="590" y="340" font-size="15" fill="#eef1f6">To cross the tile inside the slot, a ray may</text>
+  <text x="590" y="362" font-size="15" fill="#eef1f6">climb at most 1/4 over its run of 1:</text>
+  <text x="590" y="386" font-size="14" font-family="Consolas, Menlo, monospace" fill="#5fd38d">|d_y / d_x| &lt; 1/4</text>
+  <text x="590" y="408" font-size="14" fill="#969eac">and it must enter at the slot's height.</text>
+
+  <text x="36" y="448" font-size="14" fill="#969eac">Inside a holed wall, the same DDA runs on the panels, with Δt′ = (1/4) / |d|, and stops at the first intact panel.</text>
+</svg>

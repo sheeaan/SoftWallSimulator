@@ -43,6 +43,8 @@ Each shot drills a slot through the drywall along the line of fire.
 Inside a holed wall, a second DDA walks the wall's 4 × 4 panels, so light and sight pass only through the slot.
 The third hit on the same wall breaks it.
 
+![A drywall tile as a 4 by 4 grid of panel bits with row 2 shot out, so the mask goes from 0xFFFF to 0xF0FF. A ray along the line of fire passes through the slot, a steeper ray hits row 3, and a higher ray hits plaster.](docs/bullet-slot.svg)
+
 ### Breaking a wall re-plans the defender in the same frame
 
 ![With the algorithm view on, a breach charge opens the drywall, and the defender's A* path snaps from the long way around to straight through the new hole](docs/replan.gif)
@@ -80,6 +82,8 @@ $$
 
 That is one comparison and one addition per cell, with no trigonometry, and a ray ends within $W + H + 2$ steps.
 [The derivation.](docs/MATH.md#2-dda-walking-a-ray-through-the-grid)
+
+![The worked DDA example on a 5 by 3 grid: the ray from (0.5, 0.5) crosses column lines at t = 0.559, 1.677, and 2.795 and a row line at t = 1.118, with a table comparing tMaxX and tMaxY at each step](docs/dda-step.svg)
 
 **3. A\* with an exact estimate.** $f = g + h$, where a straight step costs 10, a diagonal step costs 14, and $h$ is the octile distance:
 

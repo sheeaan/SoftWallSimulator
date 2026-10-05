@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="470" viewBox="0 0 960 470" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <title>One DDA ray, step by step</title>
+  <rect width="960" height="470" rx="14" fill="#0b0f1a" stroke="#1f2738"/>
+  <text x="36" y="50" font-size="24" font-weight="600" fill="#eef1f6">One DDA ray, step by step</text>
+  <text x="36" y="78" font-size="14" fill="#969eac">The worked example from docs/MATH.md: o = (0.5, 0.5), d = (2, 1) / √5, and a wall in cell (3, 1).</text>
+
+  <!-- The grid: 5 columns by 3 rows, 92 pixels per cell, cell (c, r) at (40 + 92c, 110 + 92r). -->
+  <rect x="40" y="110" width="460" height="276" fill="#151b29"/>
+  <g fill="#1d3554">
+    <rect x="40" y="110" width="92" height="92"/>
+    <rect x="132" y="110" width="92" height="92"/>
+    <rect x="132" y="202" width="92" height="92"/>
+    <rect x="224" y="202" width="92" height="92"/>
+  </g>
+  <rect x="316" y="202" width="92" height="92" fill="#5c5e64"/>
+  <g stroke="#2c3549" stroke-width="1.5">
+    <line x1="40" y1="110" x2="40" y2="386"/>
+    <line x1="132" y1="110" x2="132" y2="386"/>
+    <line x1="224" y1="110" x2="224" y2="386"/>
+    <line x1="316" y1="110" x2="316" y2="386"/>
+    <line x1="408" y1="110" x2="408" y2="386"/>
+    <line x1="500" y1="110" x2="500" y2="386"/>
+    <line x1="40" y1="110" x2="500" y2="110"/>
+    <line x1="40" y1="202" x2="500" y2="202"/>
+    <line x1="40" y1="294" x2="500" y2="294"/>
+    <line x1="40" y1="386" x2="500" y2="386"/>
+  </g>
+  <rect x="316" y="202" width="92" height="92" fill="none" stroke="#92969e" stroke-width="2"/>
+
+  <!-- Cell labels, in the corner the ray does not cross. -->
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#8e9ab0">
+    <text x="48" y="128">start</text>
+    <text x="48" y="143">(0, 0)</text>
+    <text x="140" y="128">step 1</text>
+    <text x="140" y="143">(1, 0)</text>
+    <text x="140" y="270">step 2</text>
+    <text x="140" y="285">(1, 1)</text>
+    <text x="232" y="270">step 3</text>
+    <text x="232" y="285">(2, 1)</text>
+  </g>
+  <g font-family="Consolas, Menlo, monospace" font-size="12" fill="#eef1f6">
+    <text x="324" y="222">step 4</text>
+    <text x="324" y="237">wall (3, 1)</text>
+  </g>
+
+  <!-- The ray, and its unreached continuation to the next row line. -->
+  <line x1="86" y1="156" x2="316" y2="271" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="316" y1="271" x2="362" y2="294" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="5 5"/>
+  <circle cx="86" cy="156" r="5" fill="#ffffff"/>
+  <text x="76" y="178" font-size="16" font-style="italic" fill="#eef1f6" text-anchor="end">o</text>
+
+  <!-- Boundary crossings: yellow for column lines, cyan for row lines, as in the game's math view. -->
+  <circle cx="132" cy="179" r="6" fill="#ffd65a"/>
+  <circle cx="178" cy="202" r="6" fill="#5adcff"/>
+  <circle cx="224" cy="225" r="6" fill="#ffd65a"/>
+  <circle cx="316" cy="271" r="6" fill="#ffd65a"/>
+  <circle cx="316" cy="271" r="12" fill="none" stroke="#ffd65a" stroke-width="2"/>
+  <circle cx="362" cy="294" r="6" fill="none" stroke="#5adcff" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="3 3"/>
+  <g font-family="Consolas, Menlo, monospace" font-size="13">
+    <text x="140" y="172" fill="#ffd65a">t = 0.559</text>
+    <text x="170" y="222" fill="#5adcff" text-anchor="end">t = 1.118</text>
+    <text x="232" y="218" fill="#ffd65a">t = 1.677</text>
+    <text x="418" y="258" fill="#ffd65a">stops at</text>
+    <text x="418" y="274" fill="#ffd65a">t = 2.795</text>
+    <text x="372" y="316" fill="#5adcff" fill-opacity="0.75">t = 3.354, never reached</text>
+  </g>
+
+  <!-- Legend, constants, and the step table. -->
+  <circle cx="588" cy="122" r="6" fill="#ffd65a"/>
+  <text x="602" y="127" font-size="15" fill="#eef1f6">crosses a column line</text>
+  <text x="602" y="148" font-size="13" font-family="Consolas, Menlo, monospace" fill="#969eac">t = tMaxX, then tMaxX += ΔtX</text>
+  <circle cx="588" cy="176" r="6" fill="#5adcff"/>
+  <text x="602" y="181" font-size="15" fill="#eef1f6">crosses a row line</text>
+  <text x="602" y="202" font-size="13" font-family="Consolas, Menlo, monospace" fill="#969eac">t = tMaxY, then tMaxY += ΔtY</text>
+  <text x="580" y="238" font-size="13" font-family="Consolas, Menlo, monospace" fill="#eef1f6">ΔtX = 1/|dx| = 1.118</text>
+  <text x="772" y="238" font-size="13" font-family="Consolas, Menlo, monospace" fill="#eef1f6">ΔtY = 1/|dy| = 2.236</text>
+
+  <g font-family="Consolas, Menlo, monospace" font-size="14">
+    <g fill="#969eac">
+      <text x="580" y="272">step</text>
+      <text x="630" y="272">tMaxX</text>
+      <text x="700" y="272">tMaxY</text>
+      <text x="772" y="272">crosses</text>
+      <text x="846" y="272">enters</text>
+    </g>
+    <line x1="580" y1="281" x2="932" y2="281" stroke="#2c3549" stroke-width="1.5"/>
+
+    <text x="580" y="302" fill="#eef1f6">1</text>
+    <text x="630" y="302" fill="#ffd65a" font-weight="700">0.559</text>
+    <text x="700" y="302" fill="#5f6878">1.118</text>
+    <text x="772" y="302" fill="#eef1f6">column</text>
+    <text x="846" y="302" fill="#eef1f6">(1, 0)</text>
+
+    <text x="580" y="326" fill="#eef1f6">2</text>
+    <text x="630" y="326" fill="#5f6878">1.677</text>
+    <text x="700" y="326" fill="#5adcff" font-weight="700">1.118</text>
+    <text x="772" y="326" fill="#eef1f6">row</text>
+    <text x="846" y="326" fill="#eef1f6">(1, 1)</text>
+
+    <text x="580" y="350" fill="#eef1f6">3</text>
+    <text x="630" y="350" fill="#ffd65a" font-weight="700">1.677</text>
+    <text x="700" y="350" fill="#5f6878">3.354</text>
+    <text x="772" y="350" fill="#eef1f6">column</text>
+    <text x="846" y="350" fill="#eef1f6">(2, 1)</text>
+
+    <text x="580" y="374" fill="#eef1f6">4</text>
+    <text x="630" y="374" fill="#ffd65a" font-weight="700">2.795</text>
+    <text x="700" y="374" fill="#5f6878">3.354</text>
+    <text x="772" y="374" fill="#eef1f6">column</text>
+    <text x="846" y="374" fill="#eef1f6">(3, 1) wall</text>
+  </g>
+
+  <text x="36" y="422" font-size="15" fill="#eef1f6">Each step crosses whichever boundary is nearer: one comparison, one addition, and one tile lookup, with no trigonometry.</text>
+  <text x="36" y="448" font-size="14" fill="#969eac">A ray crosses each of the 49 column lines and 28 row lines at most once, so on the 48 × 27 map it ends within 77 steps.</text>
+</svg>
