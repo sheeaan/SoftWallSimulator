@@ -35,13 +35,13 @@ namespace
     }
 
     // Maps a world position onto the gradient texture, centered on the light, so brightness falls with distance.
-    // Positions beyond the light radius land outside the texture, where its black edge repeats.
-    sf::Vertex makeLightVertex(sf::Vector2f worldPosition, sf::Vector2f lightOrigin)
+    // Positions beyond the light's radius land outside the texture, where its black edge repeats.
+    sf::Vertex makeLightVertex(sf::Vector2f worldPosition, sf::Vector2f lightOrigin, float radius, sf::Color color)
     {
         float halfSize = static_cast<float>(GradientSize) / 2.f;
-        sf::Vector2f offsetInRadii = (worldPosition - lightOrigin) / LightingRenderer::LightRadius;
+        sf::Vector2f offsetInRadii = (worldPosition - lightOrigin) / radius;
         sf::Vector2f textureCoordinates = sf::Vector2f(halfSize, halfSize) + offsetInRadii * halfSize;
-        return sf::Vertex{worldPosition, Palette::Light, textureCoordinates};
+        return sf::Vertex{worldPosition, color, textureCoordinates};
     }
 }
 
@@ -75,24 +75,29 @@ LightingRenderer::LightingRenderer(sf::Vector2u windowSize)
     radialGradient.setSmooth(true);
 }
 
-void LightingRenderer::drawLightMap(sf::RenderTarget& target,
-                                    const sf::View& worldView,
-                                    const Grid& grid,
-                                    sf::Vector2f lightOrigin,
-                                    const std::vector<RayHit>& visibility)
+void LightingRenderer::beginLightMap(const sf::View& worldView)
 {
+    lightMap.setView(worldView);
+    lightMap.clear(Palette::AmbientLight);
+}
+
+void LightingRenderer::addLight(const Grid& grid, sf::Vector2f origin, const std::vector<RayHit>& visibility,
+                                float radius, sf::Color color)
+{
+    if (visibility.empty())
+    {
+        return;
+    }
+
     // The visibility polygon as a triangle fan: the light's origin, every hit in angle order,
     // then the first hit again to close the loop.
     visibilityFan.clear();
-    visibilityFan.append(makeLightVertex(lightOrigin, lightOrigin));
+    visibilityFan.append(makeLightVertex(origin, origin, radius, color));
     for (const RayHit& hit : visibility)
     {
-        visibilityFan.append(makeLightVertex(hit.point, lightOrigin));
+        visibilityFan.append(makeLightVertex(hit.point, origin, radius, color));
     }
-    if (!visibility.empty())
-    {
-        visibilityFan.append(makeLightVertex(visibility.front().point, lightOrigin));
-    }
+    visibilityFan.append(makeLightVertex(visibility.front().point, origin, radius, color));
 
     // Walls stop the rays, so they sit just outside the polygon. Each wall cell a ray reached
     // gets lit as brightly as the floor at that ray's end, using the nearest hit on that cell.
@@ -115,24 +120,26 @@ void LightingRenderer::drawLightMap(sf::RenderTarget& target,
     for (std::size_t cellIndex = 0; cellIndex < nearestHitDistances.size(); ++cellIndex)
     {
         float distance = nearestHitDistances[cellIndex];
-        if (distance >= LightRadius)
+        if (distance >= radius)
         {
             continue;
         }
         GridCell cell = grid.cellAt(cellIndex);
         sf::Vector2f topLeft(static_cast<float>(cell.column), static_cast<float>(cell.row));
         sf::Vector2f bottomRight = topLeft + sf::Vector2f(1.f, 1.f);
-        appendQuad(wallLightVertices, topLeft, bottomRight, scaleBrightness(Palette::Light, lightFalloff(distance / LightRadius)));
+        appendQuad(wallLightVertices, topLeft, bottomRight, scaleBrightness(color, lightFalloff(distance / radius)));
     }
 
-    // Light map = ambient everywhere + the gradient inside the polygon + the lit walls.
-    lightMap.setView(worldView);
-    lightMap.clear(Palette::AmbientLight);
+    // Lights add up: the gradient inside the polygon, then the lit walls.
     sf::RenderStates polygonStates;
     polygonStates.blendMode = sf::BlendAdd;
     polygonStates.texture = &radialGradient;
     lightMap.draw(visibilityFan, polygonStates);
     lightMap.draw(wallLightVertices, sf::BlendAdd);
+}
+
+void LightingRenderer::applyLightMap(sf::RenderTarget& target)
+{
     lightMap.display();
 
     // Multiply: lit pixels keep their color, unlit pixels drop to the ambient level.

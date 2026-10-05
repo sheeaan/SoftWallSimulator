@@ -15,14 +15,34 @@ namespace
     constexpr float DrywallSeamWidth = 0.015f; // Hairline joint between neighboring drywall boards.
     constexpr float SplinterWidth = 0.05f;     // Torn board and exposed stud around a bullet hole.
     constexpr float SteelFrameWidth = 0.1f;
+    constexpr float BraceWidth = 0.07f;
     constexpr float RivetSize = 0.07f;
     constexpr float RivetInset = 0.17f;
+    constexpr float SpeckleSize = 0.06f;
+    constexpr int SpecklesPerTile = 6;
+    constexpr float BarricadeThickness = 0.34f; // How deep the planks are, measured across the doorway.
+    constexpr float PlankSeamWidth = 0.025f;
+    constexpr float BarricadeEdgeWidth = 0.04f;
+    constexpr float SiteOutlineWidth = 0.06f;
     constexpr float FlashSeconds = 0.12f;
     constexpr float PanelSize = 1.f / static_cast<float>(Grid::PanelsPerSide);
+
+    bool containsCell(const std::vector<GridCell>& cells, GridCell cell)
+    {
+        for (const GridCell& listedCell : cells)
+        {
+            if (listedCell == cell)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
-TileMapRenderer::TileMapRenderer(const Grid& grid)
+TileMapRenderer::TileMapRenderer(const Grid& grid, const std::vector<GridCell>& bombSite)
     : floorVertices(sf::PrimitiveType::Triangles)
+    , siteOutlineVertices(sf::PrimitiveType::Triangles)
     , wallVertices(sf::PrimitiveType::Triangles)
     , wallEdgeVertices(sf::PrimitiveType::Triangles)
     , flashVertices(sf::PrimitiveType::Triangles)
@@ -49,6 +69,37 @@ TileMapRenderer::TileMapRenderer(const Grid& grid)
         }
     }
 
+    // The bomb site: an orange tint on its floor, and an outline around the area that stays visible in the dark.
+    for (const GridCell& cell : bombSite)
+    {
+        float left = static_cast<float>(cell.column);
+        float top = static_cast<float>(cell.row);
+        float right = left + 1.f;
+        float bottom = top + 1.f;
+        appendQuad(floorVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), Palette::SiteFloorTint);
+
+        if (!containsCell(bombSite, GridCell{cell.column, cell.row - 1}))
+        {
+            appendQuad(siteOutlineVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + SiteOutlineWidth),
+                       Palette::SiteOutline);
+        }
+        if (!containsCell(bombSite, GridCell{cell.column, cell.row + 1}))
+        {
+            appendQuad(siteOutlineVertices, sf::Vector2f(left, bottom - SiteOutlineWidth), sf::Vector2f(right, bottom),
+                       Palette::SiteOutline);
+        }
+        if (!containsCell(bombSite, GridCell{cell.column - 1, cell.row}))
+        {
+            appendQuad(siteOutlineVertices, sf::Vector2f(left, top), sf::Vector2f(left + SiteOutlineWidth, bottom),
+                       Palette::SiteOutline);
+        }
+        if (!containsCell(bombSite, GridCell{cell.column + 1, cell.row}))
+        {
+            appendQuad(siteOutlineVertices, sf::Vector2f(right - SiteOutlineWidth, top), sf::Vector2f(right, bottom),
+                       Palette::SiteOutline);
+        }
+    }
+
     rebuildWalls(grid);
 }
 
@@ -62,13 +113,22 @@ void TileMapRenderer::rebuildWalls(const Grid& grid)
         {
             GridCell cell{column, row};
             const Tile& tile = grid.getTile(cell);
-            if (tile.type == TileType::HARD_WALL)
+            switch (tile.type)
             {
-                appendSteelWall(grid, cell);
-            }
-            else if (tile.type == TileType::SOFT_WALL)
-            {
+            case TileType::EMPTY:
+                break;
+            case TileType::SOFT_WALL:
                 appendDrywall(grid, cell, tile);
+                break;
+            case TileType::HARD_WALL:
+                appendConcreteWall(grid, cell);
+                break;
+            case TileType::REINFORCED_WALL:
+                appendReinforcedWall(grid, cell);
+                break;
+            case TileType::BARRICADE:
+                appendBarricade(grid, cell);
+                break;
             }
         }
     }
@@ -111,6 +171,7 @@ void TileMapRenderer::drawWalls(sf::RenderTarget& target) const
 
 void TileMapRenderer::drawWallEdges(sf::RenderTarget& target) const
 {
+    target.draw(siteOutlineVertices);
     target.draw(wallEdgeVertices);
 }
 
@@ -127,19 +188,41 @@ void TileMapRenderer::drawFlashes(sf::RenderTarget& target)
     target.draw(flashVertices, sf::BlendAdd);
 }
 
-void TileMapRenderer::appendSteelWall(const Grid& grid, GridCell cell)
+void TileMapRenderer::appendConcreteWall(const Grid& grid, GridCell cell)
+{
+    float left = static_cast<float>(cell.column);
+    float top = static_cast<float>(cell.row);
+    appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(left + 1.f, top + 1.f), Palette::Concrete);
+
+    // Aggregate speckles at fixed pseudo-random spots, so the same tile always looks the same.
+    for (int speckle = 0; speckle < SpecklesPerTile; ++speckle)
+    {
+        int horizontalStep = (cell.column * 37 + cell.row * 17 + speckle * 29) % 10;
+        int verticalStep = (cell.column * 11 + cell.row * 41 + speckle * 23) % 10;
+        sf::Vector2f speckleTopLeft(left + 0.1f + 0.08f * static_cast<float>(horizontalStep),
+                                    top + 0.1f + 0.08f * static_cast<float>(verticalStep));
+        appendQuad(wallVertices, speckleTopLeft, speckleTopLeft + sf::Vector2f(SpeckleSize, SpeckleSize),
+                   Palette::ConcreteSpeckle);
+    }
+
+    appendFloorFacingEdges(grid, cell, Palette::ConcreteEdge);
+}
+
+void TileMapRenderer::appendReinforcedWall(const Grid& grid, GridCell cell)
 {
     float left = static_cast<float>(cell.column);
     float top = static_cast<float>(cell.row);
     float right = left + 1.f;
     float bottom = top + 1.f;
 
-    // A reinforced steel plate: a dark frame, a raised inner plate, and a rivet in each corner.
+    // A steel plate: a dark frame, a raised inner plate, two hydraulic braces in an X, and a rivet in each corner.
     appendQuad(wallVertices, sf::Vector2f(left, top), sf::Vector2f(right, bottom), Palette::SteelPlate);
-    appendQuad(wallVertices,
-               sf::Vector2f(left + SteelFrameWidth, top + SteelFrameWidth),
-               sf::Vector2f(right - SteelFrameWidth, bottom - SteelFrameWidth),
-               Palette::SteelInnerPlate);
+    sf::Vector2f innerTopLeft(left + SteelFrameWidth, top + SteelFrameWidth);
+    sf::Vector2f innerBottomRight(right - SteelFrameWidth, bottom - SteelFrameWidth);
+    appendQuad(wallVertices, innerTopLeft, innerBottomRight, Palette::SteelInnerPlate);
+    appendLine(wallVertices, innerTopLeft, innerBottomRight, BraceWidth, Palette::SteelBrace);
+    appendLine(wallVertices, sf::Vector2f(innerBottomRight.x, innerTopLeft.y), sf::Vector2f(innerTopLeft.x, innerBottomRight.y),
+               BraceWidth, Palette::SteelBrace);
 
     const sf::Vector2f rivetCenters[4] = {
         sf::Vector2f(left + RivetInset, top + RivetInset),
@@ -153,22 +236,77 @@ void TileMapRenderer::appendSteelWall(const Grid& grid, GridCell cell)
         appendQuad(wallVertices, rivetCenter - halfRivet, rivetCenter + halfRivet, Palette::Rivet);
     }
 
+    appendFloorFacingEdges(grid, cell, Palette::SteelEdge);
+}
+
+void TileMapRenderer::appendBarricade(const Grid& grid, GridCell cell)
+{
+    float left = static_cast<float>(cell.column);
+    float top = static_cast<float>(cell.row);
+
+    // The planks lie along the wall the doorway cuts through. Floor to the left or right means
+    // people pass left to right, so the planks form a vertical strip; otherwise a horizontal one.
+    bool passageIsHorizontal = grid.isWalkable(GridCell{cell.column - 1, cell.row})
+                               || grid.isWalkable(GridCell{cell.column + 1, cell.row});
+    sf::Vector2f stripTopLeft;
+    sf::Vector2f stripBottomRight;
+    if (passageIsHorizontal)
+    {
+        float stripLeft = left + 0.5f - BarricadeThickness / 2.f;
+        stripTopLeft = sf::Vector2f(stripLeft, top);
+        stripBottomRight = sf::Vector2f(stripLeft + BarricadeThickness, top + 1.f);
+    }
+    else
+    {
+        float stripTop = top + 0.5f - BarricadeThickness / 2.f;
+        stripTopLeft = sf::Vector2f(left, stripTop);
+        stripBottomRight = sf::Vector2f(left + 1.f, stripTop + BarricadeThickness);
+    }
+    appendQuad(wallVertices, stripTopLeft, stripBottomRight, Palette::Plank);
+
+    // Two seams split the strip into three planks.
+    for (int seam = 1; seam < 3; ++seam)
+    {
+        float fraction = static_cast<float>(seam) / 3.f;
+        if (passageIsHorizontal)
+        {
+            float seamX = stripTopLeft.x + BarricadeThickness * fraction;
+            appendQuad(wallVertices, sf::Vector2f(seamX - PlankSeamWidth / 2.f, stripTopLeft.y),
+                       sf::Vector2f(seamX + PlankSeamWidth / 2.f, stripBottomRight.y), Palette::PlankSeam);
+        }
+        else
+        {
+            float seamY = stripTopLeft.y + BarricadeThickness * fraction;
+            appendQuad(wallVertices, sf::Vector2f(stripTopLeft.x, seamY - PlankSeamWidth / 2.f),
+                       sf::Vector2f(stripBottomRight.x, seamY + PlankSeamWidth / 2.f), Palette::PlankSeam);
+        }
+    }
+
+    appendOutline(wallEdgeVertices, stripTopLeft, stripBottomRight, BarricadeEdgeWidth, Palette::BarricadeEdge);
+}
+
+void TileMapRenderer::appendFloorFacingEdges(const Grid& grid, GridCell cell, sf::Color color)
+{
     // A rim on each side that faces walkable floor outlines the walls.
+    float left = static_cast<float>(cell.column);
+    float top = static_cast<float>(cell.row);
+    float right = left + 1.f;
+    float bottom = top + 1.f;
     if (grid.isWalkable(GridCell{cell.column, cell.row - 1}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + EdgeWidth), Palette::SteelEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(right, top + EdgeWidth), color);
     }
     if (grid.isWalkable(GridCell{cell.column, cell.row + 1}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - EdgeWidth), sf::Vector2f(right, bottom), Palette::SteelEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, bottom - EdgeWidth), sf::Vector2f(right, bottom), color);
     }
     if (grid.isWalkable(GridCell{cell.column - 1, cell.row}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + EdgeWidth, bottom), Palette::SteelEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(left, top), sf::Vector2f(left + EdgeWidth, bottom), color);
     }
     if (grid.isWalkable(GridCell{cell.column + 1, cell.row}))
     {
-        appendQuad(wallEdgeVertices, sf::Vector2f(right - EdgeWidth, top), sf::Vector2f(right, bottom), Palette::SteelEdge);
+        appendQuad(wallEdgeVertices, sf::Vector2f(right - EdgeWidth, top), sf::Vector2f(right, bottom), color);
     }
 }
 

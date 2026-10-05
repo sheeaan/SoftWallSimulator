@@ -59,6 +59,15 @@ void StatisticsPanel::update(float seconds, const World& world)
     {
         enemyText = "IN SIGHT";
     }
+    std::string defenderStateText = "hunting";
+    if (world.getDefenderState() == DefenderState::PREPARING)
+    {
+        defenderStateText = "reinforcing";
+    }
+    else if (world.getDefenderState() == DefenderState::GUARDING)
+    {
+        defenderStateText = "guarding the site";
+    }
 
     std::ostringstream lines;
     lines << std::left << std::fixed;
@@ -71,6 +80,7 @@ void StatisticsPanel::update(float seconds, const World& world)
     lines << std::setw(LabelWidth) << "Enemy route" << routeText << '\n';
     lines << std::setw(LabelWidth) << "Re-plans" << statistics.pathRecalculations << '\n';
     lines << std::setw(LabelWidth) << "Walls broken" << statistics.wallsDestroyed << '\n';
+    lines << std::setw(LabelWidth) << "Defender" << defenderStateText << '\n';
     lines << std::setw(LabelWidth) << "Enemy" << enemyText;
     bodyText.setString(lines.str());
 

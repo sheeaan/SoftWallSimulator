@@ -113,7 +113,8 @@ public:
     const std::vector<GridCell>& getReinforcedCells() const;
 
     bool canPlayerSeeEnemy() const;
-    bool isEnemySpotted() const; // Seen by the attacker or the drone within the last few seconds.
+    bool canDroneSeeEnemy() const; // False unless the attacker is driving the drone.
+    bool isEnemySpotted() const;   // Seen by the attacker or the drone within the last few seconds.
 
     // The full DDA record of one ray from the player toward a point, for the math view.
     RayTrace traceRayFromPlayer(sf::Vector2f toward) const;

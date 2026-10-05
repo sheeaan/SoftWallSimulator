@@ -18,20 +18,38 @@ namespace Palette
     inline constexpr sf::Color Splinter{166, 112, 62};
     inline constexpr sf::Color SteelPlate{52, 60, 74};
     inline constexpr sf::Color SteelInnerPlate{66, 75, 91};
+    inline constexpr sf::Color SteelBrace{38, 44, 56};
     inline constexpr sf::Color Rivet{132, 142, 160};
+    inline constexpr sf::Color Concrete{92, 94, 100};
+    inline constexpr sf::Color ConcreteSpeckle{74, 76, 82};
+    inline constexpr sf::Color Plank{150, 104, 58};
+    inline constexpr sf::Color PlankSeam{100, 68, 36};
+    inline constexpr sf::Color SiteFloorTint{255, 138, 36, 38};
 
     // Edges skip the light map, so the outline of the map stays visible in the dark.
     inline constexpr sf::Color DrywallEdge{196, 190, 176};
     inline constexpr sf::Color SteelEdge{104, 118, 142};
+    inline constexpr sf::Color ConcreteEdge{146, 150, 158};
+    inline constexpr sf::Color BarricadeEdge{196, 146, 92};
+    inline constexpr sf::Color SiteOutline{255, 138, 36, 210};
 
-    // Destruction.
+    // Destruction and gadgets.
     inline constexpr sf::Color TileFlash{255, 255, 255, 190};
     inline constexpr sf::Color PlasterDust{200, 194, 182, 210};
     inline constexpr sf::Color Spark{255, 196, 110};
+    inline constexpr sf::Color MoltenSpark{255, 140, 30};
+    inline constexpr sf::Color ReinforceSpark{200, 215, 235};
+    inline constexpr sf::Color ChargeBody{40, 42, 48};
+    inline constexpr sf::Color BreachChargeLight{255, 60, 60};
+    inline constexpr sf::Color ExothermicGlow{255, 120, 30};
+    inline constexpr sf::Color DroneBody{30, 34, 44};
+    inline constexpr sf::Color DroneRing{54, 150, 255};
+    inline constexpr sf::Color SpottedMarker{255, 138, 36};
 
-    // The light map starts at the ambient level; the player's light adds to it.
+    // The light map starts at the ambient level; each light adds to it.
     inline constexpr sf::Color AmbientLight{64, 70, 96};
     inline constexpr sf::Color Light{255, 240, 214};
+    inline constexpr sf::Color DroneLight{150, 190, 255};
 
     // Glow alphas set the strength of their additive blend.
     inline constexpr sf::Color PlayerBody{160, 210, 255};
@@ -48,6 +66,8 @@ namespace Palette
     inline constexpr sf::Color HudMutedText{150, 158, 172};
     inline constexpr sf::Color KeycapFill{24, 28, 38, 230};
     inline constexpr sf::Color KeycapBorder{190, 198, 212};
+    inline constexpr sf::Color HudMessage{255, 214, 120};
+    inline constexpr sf::Color ResultBackground{8, 10, 20, 225};
 
     // Math view. Column crossings and row crossings get their own colors, in the shapes and the table alike.
     inline constexpr sf::Color AxisLabel{150, 160, 180, 220};

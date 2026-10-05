@@ -37,6 +37,7 @@ add_executable(SoftWallSimulator
     src/main.cpp
     src/presentation/AlgorithmOverlay.cpp
     src/presentation/DroneCameraFilter.cpp
+    src/presentation/GadgetRenderer.cpp
     src/presentation/Game.cpp
     src/presentation/HeadsUpDisplay.cpp
     src/presentation/LightingRenderer.cpp

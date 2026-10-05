@@ -131,6 +131,11 @@ bool MathView::isVisible() const
     return visible;
 }
 
+void MathView::invalidate()
+{
+    labeledSearchNumber = -1;
+}
+
 void MathView::update(const World& world, sf::Vector2f cursorWorldPosition)
 {
     if (!visible)

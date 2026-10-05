@@ -28,6 +28,9 @@ public:
     void toggle();
     bool isVisible() const;
 
+    // Forgets the cached A* labels, for when the world is replaced by a new round.
+    void invalidate();
+
     // The cursor position is in world units.
     void update(const World& world, sf::Vector2f cursorWorldPosition);
     void draw(sf::RenderTarget& window, const sf::View& cameraView) const;

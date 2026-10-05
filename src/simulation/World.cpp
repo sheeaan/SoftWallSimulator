@@ -261,6 +261,15 @@ bool World::canPlayerSeeEnemy() const
     return raycaster.hasLineOfSight(player.getPosition(), enemy.getPosition(), grid);
 }
 
+bool World::canDroneSeeEnemy() const
+{
+    if (!drivingDrone || !drone.has_value())
+    {
+        return false;
+    }
+    return droneRaycaster.hasLineOfSight(drone.value().getPosition(), enemy.getPosition(), grid);
+}
+
 bool World::isEnemySpotted() const
 {
     return spottedSecondsLeft > 0.f;
@@ -292,13 +301,7 @@ void World::castVisibility()
 void World::updateSpotting(float seconds)
 {
     // Whatever the attacker or the drone sees is spotted, and the mark lingers for a few seconds.
-    bool seen = canPlayerSeeEnemy();
-    if (drivingDrone && drone.has_value()
-        && droneRaycaster.hasLineOfSight(drone.value().getPosition(), enemy.getPosition(), grid))
-    {
-        seen = true;
-    }
-
+    bool seen = canPlayerSeeEnemy() || canDroneSeeEnemy();
     if (seen)
     {
         spottedSecondsLeft = SpottedSeconds;
