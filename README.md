@@ -1,5 +1,7 @@
 # Soft Wall Simulator
 
+[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+
 A 2D, top-down round of Rainbow Six Siege's bomb mode in C++17 and SFML 3, built without an engine.
 You play Striker, the attacker. An AI Sentry defends bomb site A.
 During preparation, Sentry reinforces walls with steel while you drone the building.
@@ -7,7 +9,95 @@ In the action phase you open a route with bullets, breach charges, and hard brea
 Underneath, 360 DDA rays light the map through every hole, and Sentry's A\* path re-plans the instant a wall breaks.
 Press **M** to see the math behind all of it, with the real numbers the code computed.
 
-![The action phase: a bullet slot in the drywall throws a beam across the hall onto Sentry's reinforced steel](docs/gameplay.jpg)
+![Striker's shots spark off reinforced steel, a hard breach charge burns through it, and light floods bomb site A as Sentry turns to hunt](docs/hero.gif)
+
+## Inspiration
+
+In Rainbow Six Siege, walls are information.
+A bullet hole in drywall opens a sightline.
+A breach charge changes every route through the building, and a reinforced wall closes both.
+Defenders shape the map during preparation, and attackers tear it open during the action phase.
+Siege builds this on RealBlast, its procedural destruction engine ([GDC 2016 talk](https://www.gdcvault.com/play/1023003/The-Art-of-Destruction-in)).
+
+This project asks a smaller question: what does it take to keep vision and pathfinding correct when any wall can change on any frame?
+
+| In Siege | Here | Under the hood |
+|---|---|---|
+| Shooting drywall opens a sightline | A shot clears a slot in the wall's 4 × 4 panels, along the line of fire | A second DDA walks the panels inside a holed wall |
+| Defenders reinforce walls during preparation | Sentry walks to each planned wall and turns it to steel | A\* to the closest open side of the wall |
+| Hard breachers burn through reinforced walls | A hard breach charge burns for 3 seconds, then opens steel | One blast, then one A\* re-plan |
+| Breach charges blow open drywall and barricades | A breach charge opens its wall and the drywall and barricades beside it | The blast is filtered by tile type |
+| The drone phase | A drone with its own 360 rays rolls under barricades | A second visibility polygon and a spotting timer |
+| A roaming defender | Sentry reinforces, guards the site, then hunts you | One A\*, three goals |
+| The drone camera feed | Grain, scanlines, and a vignette | A GLSL fragment shader |
+
+The papers and talks behind the algorithms are under [References](#references).
+
+## See it work
+
+### A bullet hole is a sightline
+
+![Three shots drill three slots in the drywall, each throwing a beam of light across the hall, and two more hits break the middle wall open](docs/sightlines.gif)
+
+Each shot drills a slot through the drywall along the line of fire.
+Inside a holed wall, a second DDA walks the wall's 4 × 4 panels, so light and sight pass only through the slot.
+The third hit on the same wall breaks it.
+
+### Breaking a wall re-plans the defender in the same frame
+
+![With the algorithm view on, a breach charge opens the drywall, and the defender's A* path snaps from the long way around to straight through the new hole](docs/replan.gif)
+
+The algorithm view (Tab) shows the 360 rays, the cells A\* expanded, and the defender's path.
+Sentry spotted Striker through a bullet slot and is hunting along the only walkable route, around the north of the hall.
+When the breach charge opens the wall, `World::burnFuses` re-runs A\* once for the whole blast, and the path cuts straight through the hole in the same frame.
+
+### The math view
+
+![The math view live: as the cursor sweeps, the DDA trace, its step table, and the hovered cell's memory layout update every frame](docs/math-view-live.gif)
+
+Press M. The ray from Striker toward the cursor is traced cell by cell, with tMaxX and tMaxY at every crossing.
+The hovered cell shows its index and byte offset, measured from real addresses.
+
+## The math in 60 seconds
+
+Four formulas carry the project.
+[docs/MATH.md](docs/MATH.md) derives each one and works an example by hand, and the tests check those examples.
+
+**1. The map is one array.** Cell $(c, r)$ of the $48 \times 27$ grid lives at
+
+$$
+\text{index} = r \cdot 48 + c, \qquad \text{offset} = 4 \cdot \text{index} \text{ bytes}.
+$$
+
+Left and right neighbors sit side by side in memory, so loops that walk row by row read memory front to back.
+[The derivation.](docs/MATH.md#1-the-grid-a-2d-map-in-one-array)
+
+**2. A ray steps from cell to cell.** Crossing one column costs $\Delta t_x = 1/|d_x|$ of distance along the ray, and crossing one row costs $\Delta t_y = 1/|d_y|$. Each step crosses whichever boundary is nearer:
+
+$$
+\text{if } t^{\max}_x < t^{\max}_y:\; t^{\max}_x \mathrel{+}= \Delta t_x, \qquad \text{else}:\; t^{\max}_y \mathrel{+}= \Delta t_y.
+$$
+
+That is one comparison and one addition per cell, with no trigonometry, and a ray ends within $W + H + 2$ steps.
+[The derivation.](docs/MATH.md#2-dda-walking-a-ray-through-the-grid)
+
+**3. A\* with an exact estimate.** $f = g + h$, where a straight step costs 10, a diagonal step costs 14, and $h$ is the octile distance:
+
+$$
+h = 14 \min(\Delta c, \Delta r) + 10 \big(\max(\Delta c, \Delta r) - \min(\Delta c, \Delta r)\big).
+$$
+
+It never overestimates, and it never drops by more than one step's cost, so the first time A\* pops a cell, that cell's cost is final.
+[The derivation.](docs/MATH.md#5-a-g-h-and-f)
+
+**4. Light falls off smoothly.** Brightness at distance $\rho$ from a light of radius $R$ is
+
+$$
+b(\rho) = 1 - \operatorname{smoothstep}\!\left(\frac{\rho}{R}\right), \qquad \operatorname{smoothstep}(x) = 3x^2 - 2x^3.
+$$
+
+Texture coordinates are an affine function of position, so the GPU's linear interpolation keeps the falloff exactly radial inside every triangle of the fan.
+[The derivation.](docs/MATH.md#4-light-from-the-visibility-polygon)
 
 ## How a round plays
 
