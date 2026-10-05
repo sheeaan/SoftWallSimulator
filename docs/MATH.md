@@ -21,7 +21,7 @@ $$
 c = \text{index} \bmod W, \quad r = \left\lfloor \frac{\text{index}}{W} \right\rfloor
 $$
 
-A `Tile` is 4 bytes: a 1-byte type, a 1-byte health, and a 2-byte panel mask.
+A `Tile` is 4 bytes: a 1-byte type (one of five: empty, drywall, concrete, reinforced steel, barricade), a 1-byte health, and a 2-byte panel mask.
 So a cell's byte offset from the start of the array is
 
 $$
@@ -284,3 +284,44 @@ $$
 $$
 
 Squaring $T$ makes small hits barely move the camera, while a breaking wall kicks it hard.
+
+---
+
+## 8. Rounds, charges, spotting, and the defender
+
+`Round` in `src/simulation/Round.cpp`, and `World::placeCharge`, `World::detonate`, `World::updateDefender` in `World.cpp`.
+
+**Planting.** During the action phase, the plant time $P$ grows while the attacker stands in the bomb site and drops to zero the moment they step out:
+
+$$
+P \leftarrow \begin{cases} P + \Delta t & \text{in the site} \\ 0 & \text{outside} \end{cases}
+\qquad \text{attackers win when } P \ge 4 \text{ s}.
+$$
+
+**Charge reach.** A charge needs a wall that touches the attacker's cell, sides and corners included.
+That is a Chebyshev distance of at most 1:
+
+$$
+\max\big(|c_{wall} - c_{attacker}|,\; |r_{wall} - r_{attacker}|\big) \le 1.
+$$
+
+**Blast.** When the fuse reaches zero, the charge opens its own cell and its four neighbors, $(c, r \pm 1)$ and $(c \pm 1, r)$.
+It opens only cells it can break: a breach charge opens drywall and barricades, and an exothermic charge opens drywall and steel.
+Every opened tile is a new walkable cell, so one A\* re-plan after the whole blast covers all of them.
+
+**Spotting.** The mark time $S$ is reset whenever the attacker or the drone has line of sight to the defender, and decays otherwise:
+
+$$
+S \leftarrow \begin{cases} 4 \text{ s} & \text{seen this frame} \\ \max(0,\; S - \Delta t) & \text{not seen} \end{cases}
+\qquad \text{spotted while } S > 0.
+$$
+
+Line of sight is one DDA ray from the viewer toward the target, which must reach the target before it meets a wall.
+
+**Choosing where to stand.** To reinforce wall $w$, the defender needs to stand on an open side of it.
+It runs A\* to each walkable 4-neighbor $n$ of $w$ and walks to the one with the shortest path.
+Neighbors on the far side of the wall are unreachable, so their searches return nothing.
+That is at most four searches per wall, each on the 1,296-cell grid, during the preparation phase only.
+
+**Goals, not new algorithms.** The defender's three states (preparing, guarding, hunting) only change the goal cell handed to the same A\*.
+Any tile change re-plans toward the current goal, so a breach mid-hunt reroutes the defender in the same call.
