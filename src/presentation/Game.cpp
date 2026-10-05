@@ -55,6 +55,7 @@ Game::Game()
     , droneCameraFilter(window.getSize())
     , statisticsPanel(window.getSize())
     , headsUpDisplay(window.getSize())
+    , mathView(window.getSize(), world.getGrid())
     , debrisParticles(800)
     , sparkParticles(800)
     , playerShape(Player::HalfSize, 40)
@@ -116,6 +117,10 @@ void Game::processEvents()
             if (keyPressed->scancode == sf::Keyboard::Scan::Tab)
             {
                 algorithmOverlay.toggle();
+            }
+            else if (keyPressed->scancode == sf::Keyboard::Scan::M)
+            {
+                mathView.toggle();
             }
         }
         else if (const sf::Event::MouseButtonPressed* mousePressed = event->getIf<sf::Event::MouseButtonPressed>())
@@ -184,6 +189,10 @@ void Game::update(float seconds)
     bool enemySpotted = world.canPlayerSeeEnemy();
     headsUpDisplay.setEnemySpotted(enemySpotted);
 
+    // The math view follows the cursor, mapped into the world through the camera.
+    sf::Vector2f cursorWorldPosition = window.mapPixelToCoords(sf::Mouse::getPosition(window), cameraView);
+    mathView.update(world, cursorWorldPosition);
+
     // Fade the enemy in or out instead of popping at the edge of a shadow.
     // The overlay shows it through walls.
     float targetVisibility = 0.f;
@@ -251,9 +260,10 @@ void Game::render()
 
     sparkParticles.draw(scene, sf::BlendAdd);
 
-    // The camera filter copies the world to the window; the heads-up display goes on top, unfiltered.
+    // The camera filter copies the world to the window; the math view and the heads-up display go on top, unfiltered.
     window.clear(Palette::Background);
     droneCameraFilter.drawToWindow(window, elapsedSeconds);
+    mathView.draw(window, cameraView);
     statisticsPanel.draw(window);
     headsUpDisplay.draw(window);
     window.display();

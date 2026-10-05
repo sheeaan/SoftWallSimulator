@@ -34,8 +34,8 @@ namespace Palette
     inline constexpr sf::Color Light{255, 240, 214};
 
     // Glow alphas set the strength of their additive blend.
-    inline constexpr sf::Color PlayerBody{110, 180, 255};
-    inline constexpr sf::Color PlayerGlow{40, 130, 255, 150};
+    inline constexpr sf::Color PlayerBody{160, 210, 255};
+    inline constexpr sf::Color PlayerGlow{40, 130, 255, 170};
     inline constexpr sf::Color EnemyBody{255, 150, 52};
     inline constexpr sf::Color EnemyGlow{255, 110, 20, 170};
 
@@ -48,6 +48,19 @@ namespace Palette
     inline constexpr sf::Color HudMutedText{150, 158, 172};
     inline constexpr sf::Color KeycapFill{24, 28, 38, 230};
     inline constexpr sf::Color KeycapBorder{190, 198, 212};
+
+    // Math view. Column crossings and row crossings get their own colors, in the shapes and the table alike.
+    inline constexpr sf::Color AxisLabel{150, 160, 180, 220};
+    inline constexpr sf::Color CostSoFar{120, 200, 255};
+    inline constexpr sf::Color CostEstimate{255, 170, 90};
+    inline constexpr sf::Color TotalCost{240, 244, 250};
+    inline constexpr sf::Color ParentArrow{200, 210, 230, 120};
+    inline constexpr sf::Color TraceRay{255, 255, 255, 230};
+    inline constexpr sf::Color ColumnCrossing{255, 214, 90};
+    inline constexpr sf::Color RowCrossing{90, 220, 255};
+    inline constexpr sf::Color HoverOutline{255, 255, 255};
+    inline constexpr sf::Color MathPanelText{220, 228, 240};
+    inline constexpr sf::Color MathPanelBackground{8, 10, 20, 240};
 
     // Algorithm overlay. The path belongs to the enemy, so it uses the defender's orange.
     inline constexpr sf::Color ExploredEarly{150, 90, 255, 60};

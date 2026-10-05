@@ -59,10 +59,11 @@ HeadsUpDisplay::HeadsUpDisplay(sf::Vector2u windowSize)
     centerText(defenderText, sf::Vector2f(bannerLeft + teamWidth * 1.5f + statusWidth, bannerMiddle));
 
     // Key prompts along the bottom: a keycap with the key, then the action it performs.
-    const KeyPrompt prompts[3] = {
+    const KeyPrompt prompts[4] = {
         KeyPrompt{"W A S D", "MOVE"},
         KeyPrompt{"LMB", "SHOOT WALL"},
         KeyPrompt{"TAB", "ALGORITHM VIEW"},
+        KeyPrompt{"M", "MATH VIEW"},
     };
     unsigned int promptCharacterSize = static_cast<unsigned int>(unit * 2.f);
     float keycapPadding = unit * 0.9f;

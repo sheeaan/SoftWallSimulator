@@ -4,6 +4,7 @@
 #include "presentation/DroneCameraFilter.hpp"
 #include "presentation/HeadsUpDisplay.hpp"
 #include "presentation/LightingRenderer.hpp"
+#include "presentation/MathView.hpp"
 #include "presentation/ParticleSystem.hpp"
 #include "presentation/StatisticsPanel.hpp"
 #include "presentation/TileMapRenderer.hpp"
@@ -41,6 +42,7 @@ private:
     AlgorithmOverlay algorithmOverlay;
     StatisticsPanel statisticsPanel;
     HeadsUpDisplay headsUpDisplay;
+    MathView mathView;
     ParticleSystem debrisParticles;
     ParticleSystem sparkParticles;
     sf::CircleShape playerShape;

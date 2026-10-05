@@ -38,8 +38,10 @@ add_executable(SoftWallSimulator
     src/presentation/Game.cpp
     src/presentation/HeadsUpDisplay.cpp
     src/presentation/LightingRenderer.cpp
+    src/presentation/MathView.cpp
     src/presentation/ParticleSystem.cpp
     src/presentation/StatisticsPanel.cpp
+    src/presentation/TextBatch.cpp
     src/presentation/TileMapRenderer.cpp)
 target_link_libraries(SoftWallSimulator PRIVATE SoftWallSimulation SFML::Graphics)
 target_compile_definitions(SoftWallSimulator PRIVATE SOFT_WALL_ASSET_DIRECTORY="${PROJECT_SOURCE_DIR}/assets")
@@ -49,7 +51,8 @@ target_link_libraries(SoftWallTests PRIVATE SoftWallSimulation)
 
 foreach(soft_wall_target SoftWallSimulation SoftWallSimulator SoftWallTests)
     if(MSVC)
-        target_compile_options(${soft_wall_target} PRIVATE /W4 /permissive-)
+        # /utf-8: the math view writes symbols such as × and Δ in its string literals.
+        target_compile_options(${soft_wall_target} PRIVATE /W4 /permissive- /utf-8)
     else()
         target_compile_options(${soft_wall_target} PRIVATE -Wall -Wextra -Wpedantic)
     endif()
